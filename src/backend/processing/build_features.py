@@ -3,15 +3,7 @@ import os
 
 
 def compute_price_features(prices_df):
-    """
-    Compute technical features from price data.
-    
-    Args:
-        prices_df: DataFrame with columns including 'ticker', 'close', 'date'
-    
-    Returns:
-        DataFrame with added features: returns_1d, momentum_5d, volatility_20d
-    """
+    """Compute technical features from price data."""
     prices = prices_df.copy()
     prices["returns_1d"] = prices.groupby("ticker")["close"].pct_change()
     prices["momentum_5d"] = prices.groupby("ticker")["close"].pct_change(5)
@@ -20,15 +12,7 @@ def compute_price_features(prices_df):
 
 
 def aggregate_news_sentiment(news_df):
-    """
-    Aggregate news sentiment by ticker and date.
-    
-    Args:
-        news_df: DataFrame with columns including 'ticker', 'sentiment', and optionally 'date' or 'published'
-    
-    Returns:
-        DataFrame with average sentiment per ticker and date
-    """
+    """Aggregate news sentiment by ticker and date."""
     if news_df.empty or "sentiment" not in news_df.columns:
         return pd.DataFrame()
     
@@ -66,17 +50,7 @@ def aggregate_news_sentiment(news_df):
 def build_features(prices_path="data/processed/prices.parquet",
                    news_path="data/processed/news.parquet",
                    output_path="data/processed/features.parquet"):
-    """
-    Build feature set from prices and news data (basic stock-related features only).
-    
-    Args:
-        prices_path: Path to processed prices parquet file
-        news_path: Path to processed news parquet file
-        output_path: Path to save output features parquet file
-    
-    Returns:
-        DataFrame with price-derived features (returns, momentum, volatility) and optional news sentiment
-    """
+    """Build feature set from prices and news data (basic stock-related features only)."""
     from pathlib import Path
     
     # Load data with error handling

@@ -6,19 +6,7 @@ import re
 import html
 
 def clean_text(text, remove_html=True, remove_punctuation=False, lowercase=True, normalize_whitespace=True):
-    """
-    Clean text by removing HTML, normalizing whitespace, etc.
-    
-    Args:
-        text: Input text string
-        remove_html: Whether to remove HTML tags
-        remove_punctuation: Whether to remove punctuation (keeps alphanumeric and spaces)
-        lowercase: Whether to convert to lowercase
-        normalize_whitespace: Whether to normalize whitespace (multiple spaces to single)
-    
-    Returns:
-        str: Cleaned text
-    """
+        """Clean text by removing HTML, normalizing whitespace, etc."""
     if not text or not isinstance(text, str):
         return ""
     
@@ -45,16 +33,7 @@ def clean_text(text, remove_html=True, remove_punctuation=False, lowercase=True,
     return cleaned
 
 def remove_special_chars(text, keep_chars=None):
-    """
-    Remove special characters from text, optionally keeping specified characters.
-    
-    Args:
-        text: Input text string
-        keep_chars: String of characters to keep (e.g., ".,!?-")
-    
-    Returns:
-        str: Text with special characters removed
-    """
+        """Remove special characters from text, optionally keeping specified characters."""
     if not text or not isinstance(text, str):
         return ""
     
@@ -68,15 +47,7 @@ def remove_special_chars(text, keep_chars=None):
     return re.sub(pattern, '', text)
 
 def normalize_whitespace(text):
-    """
-    Normalize whitespace in text (multiple spaces/tabs/newlines to single space).
-    
-    Args:
-        text: Input text string
-    
-    Returns:
-        str: Text with normalized whitespace
-    """
+        """Normalize whitespace in text (multiple spaces/tabs/newlines to single space)."""
     if not text or not isinstance(text, str):
         return ""
     
@@ -85,15 +56,7 @@ def normalize_whitespace(text):
     return normalized.strip()
 
 def remove_urls(text):
-    """
-    Remove URLs from text.
-    
-    Args:
-        text: Input text string
-    
-    Returns:
-        str: Text with URLs removed
-    """
+        """Remove URLs from text."""
     if not text or not isinstance(text, str):
         return ""
     
@@ -103,15 +66,7 @@ def remove_urls(text):
     return url_pattern.sub('', text)
 
 def remove_emails(text):
-    """
-    Remove email addresses from text.
-    
-    Args:
-        text: Input text string
-    
-    Returns:
-        str: Text with email addresses removed
-    """
+        """Remove email addresses from text."""
     if not text or not isinstance(text, str):
         return ""
     
@@ -119,16 +74,8 @@ def remove_emails(text):
     return email_pattern.sub('', text)
 
 def clean_financial_text(text):
-    """
-    Clean text specifically for financial documents (10-K, earnings calls, etc.).
-    Removes HTML, normalizes whitespace, but keeps punctuation for financial terms.
-    
-    Args:
-        text: Input text string
-    
-    Returns:
-        str: Cleaned financial text
-    """
+        """Clean text specifically for financial documents (10-K, earnings calls, etc.).
+    Removes HTML, normalizes whitespace, but keeps punctuation for financial terms."""
     if not text or not isinstance(text, str):
         return ""
     

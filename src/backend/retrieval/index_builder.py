@@ -23,17 +23,7 @@ def build_news_index(
     output_path: Path,
     ticker: Optional[str] = None
 ) -> FinancialVectorStore:
-    """
-    Build vector index from processed news data.
-    
-    Args:
-        news_path: Path to processed news parquet file
-        output_path: Path to save vector index
-        ticker: Optional ticker filter
-    
-    Returns:
-        FinancialVectorStore instance
-    """
+        """Build vector index from processed news data."""
     if not news_path.exists():
         print(f"Warning: News file not found at {news_path}")
         return FinancialVectorStore()
@@ -104,17 +94,7 @@ def build_filings_index(
     output_path: Path,
     ticker: Optional[str] = None
 ) -> FinancialVectorStore:
-    """
-    Build vector index from processed filings data.
-    
-    Args:
-        filings_dir: Directory containing processed filing parquet files
-        output_path: Path to save vector index
-        ticker: Optional ticker filter
-    
-    Returns:
-        FinancialVectorStore instance
-    """
+        """Build vector index from processed filings data."""
     import glob
     
     if not filings_dir.exists():
@@ -184,17 +164,7 @@ def build_transcripts_index(
     output_path: Path,
     ticker: Optional[str] = None
 ) -> FinancialVectorStore:
-    """
-    Build vector index from processed transcripts data.
-    
-    Args:
-        transcripts_dir: Directory containing processed transcript parquet files
-        output_path: Path to save vector index
-        ticker: Optional ticker filter
-    
-    Returns:
-        FinancialVectorStore instance
-    """
+        """Build vector index from processed transcripts data."""
     import glob
     
     if not transcripts_dir.exists():
@@ -260,16 +230,7 @@ def build_combined_index(
     config: Optional[ETLConfig] = None,
     ticker: Optional[str] = None
 ) -> FinancialVectorStore:
-    """
-    Build combined vector index from all document types.
-    
-    Args:
-        config: ETLConfig instance (uses default if None)
-        ticker: Optional ticker filter
-    
-    Returns:
-        Combined FinancialVectorStore instance
-    """
+        """Build combined vector index from all document types."""
     if config is None:
         config = ETLConfig()
     

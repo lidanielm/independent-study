@@ -26,6 +26,13 @@ A comprehensive financial data pipeline and analytics platform that extracts, pr
 - Filtered Search: Search by ticker or document type
 - Index Management: Rebuild indices on-demand
 
+### AI Research Agent 🤖
+- Natural Language Queries: Ask questions in plain English
+- Intelligent Synthesis: Combines information from multiple sources
+- Document Search: Automatically searches news, filings, and transcripts
+- Source Citations: Provides references to source documents
+- Conversational Interface: Chat-based interaction with context awareness
+
 ### Data Visualization
 - Interactive Charts: Price charts with technical indicators
 - Data Tables: Formatted tables for features, news, and fundamentals
@@ -35,6 +42,7 @@ A comprehensive financial data pipeline and analytics platform that extracts, pr
 - ETL Dashboard: Trigger and monitor ETL pipelines
 - Data Explorer: Browse processed data by ticker
 - Search Interface: Semantic search across financial documents
+- AI Agent Chat: Conversational interface for research queries
 - Status Monitor: Real-time pipeline status tracking
 
 ## Architecture
@@ -56,8 +64,9 @@ src/
 ### Prerequisites
 - Python 3.9+
 - Node.js 16+
-- API keys (optional):
-  - Alpha Vantage API key (for fundamentals) - set in `.env` as `AV_API_KEY`
+- API keys:
+  - OpenAI API key (for AI agent) - set in `.env` as `OPENAI_API_KEY` (required for agent)
+  - Alpha Vantage API key (for fundamentals) - set in `.env` as `AV_API_KEY` (optional)
 
 ### Backend Setup
 
@@ -72,11 +81,14 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-3. Set up environment variables (optional):
+3. Set up environment variables:
 ```bash
 # Create .env file
-echo "AV_API_KEY=your_alpha_vantage_key" > .env
+echo "OPENAI_API_KEY=your_openai_key" > .env
+echo "AV_API_KEY=your_alpha_vantage_key" >> .env  # Optional
 ```
+
+**Note**: The OpenAI API key is required for the AI Agent feature. Get your key from https://platform.openai.com/api-keys
 
 4. Start API server:
 ```bash
@@ -130,6 +142,11 @@ python test_etl.py
 - `GET /api/search/transcripts?query=...&ticker=AAPL` - Search transcripts
 - `POST /api/search/rebuild-indices` - Rebuild vector indices
 
+### Agent Endpoints
+- `POST /api/agent/query` - Query the research agent with natural language
+- `POST /api/agent/research` - Research a specific topic
+- `GET /api/agent/status` - Get agent system status
+
 ## Technology Stack
 
 ### Backend
@@ -138,6 +155,7 @@ python test_etl.py
 - FAISS: Vector similarity search
 - Sentence Transformers: Text embeddings
 - VADER: Sentiment analysis
+- OpenAI: LLM for AI agents
 - yfinance: Stock price data
 - secedgar: SEC filings access
 
@@ -174,6 +192,15 @@ python test_etl.py
 └── README.md                # This file
 ```
 
+## AI Agent System
+
+The platform includes an AI Research Agent that can answer questions about financial data using natural language. See [AGENT_SETUP.md](AGENT_SETUP.md) for detailed setup and usage instructions.
+
+**Quick Start with Agent:**
+1. Set `OPENAI_API_KEY` in your `.env` file
+2. Navigate to `/agent` in the web interface
+3. Ask questions like "What are the main risks for AAPL?" or "Search for AI-related news"
+
 ## AI Usage
 
 This project was developed with moderate assistance from AI tools. AI was used to:
@@ -181,4 +208,5 @@ This project was developed with moderate assistance from AI tools. AI was used t
 - Debug and fix data processing issues
 - Refactor and clean up code structure
 - Write documentation and README content
+- Implement the agentic AI system for financial research
 

@@ -4,15 +4,7 @@ import os
 
 
 def compute_ratios(df):
-    """
-    Compute financial ratios from fundamental data.
-    
-    Args:
-        df: DataFrame with financial statement data
-    
-    Returns:
-        DataFrame with added ratio columns
-    """
+    """Compute financial ratios from fundamental data."""
     df = df.copy()
     
     # Year-over-year revenue growth
@@ -33,16 +25,7 @@ def compute_ratios(df):
 
 
 def process_fundamentals_file(input_path, output_path=None):
-    """
-    Process a single fundamentals file by computing ratios.
-    
-    Args:
-        input_path: Path to raw fundamentals parquet file
-        output_path: Path to save processed fundamentals (default: same as input in processed directory)
-    
-    Returns:
-        DataFrame with computed ratios
-    """
+    """Process a single fundamentals file by computing ratios."""
     df = pd.read_parquet(input_path)
     df = compute_ratios(df)
     
@@ -59,16 +42,7 @@ def process_fundamentals_file(input_path, output_path=None):
 
 
 def process_all_fundamentals(input_dir="data/raw/fundamentals", output_dir="data/processed/fundamentals"):
-    """
-    Process all fundamentals files in the input directory.
-    
-    Args:
-        input_dir: Directory containing raw fundamentals parquet files
-        output_dir: Directory to save processed fundamentals files
-    
-    Returns:
-        List of processed DataFrames
-    """
+    """Process all fundamentals files in the input directory."""
     files = glob.glob(os.path.join(input_dir, "*.parquet"))
     processed = []
     
@@ -82,16 +56,7 @@ def process_all_fundamentals(input_dir="data/raw/fundamentals", output_dir="data
 
 
 def combine_fundamentals(input_dir="data/raw/fundamentals", output_path="data/processed/fundamentals.parquet"):
-    """
-    Process and combine all fundamentals files into a single DataFrame.
-    
-    Args:
-        input_dir: Directory containing raw fundamentals parquet files
-        output_path: Path to save combined processed fundamentals
-    
-    Returns:
-        Combined DataFrame with all tickers
-    """
+    """Process and combine all fundamentals files into a single DataFrame."""
     processed = process_all_fundamentals(input_dir)
     
     if processed:

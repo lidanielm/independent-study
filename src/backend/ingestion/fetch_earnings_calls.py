@@ -5,17 +5,7 @@ import pandas as pd
 from earningscall import get_company
 
 def download_transcripts(ticker, max_transcripts=None, save_dir="data/raw/earnings_calls"):
-    """
-    Download earnings call transcripts for a given ticker.
-    
-    Args:
-        ticker: Stock ticker symbol (e.g., "AAPL")
-        max_transcripts: Maximum number of transcripts to download (None for all)
-        save_dir: Directory to save transcripts
-    
-    Returns:
-        List of dictionaries containing transcript metadata and file paths
-    """
+    """Download earnings call transcripts for a given ticker."""
     # Create save directory if it doesn't exist
     os.makedirs(save_dir, exist_ok=True)
     

@@ -20,6 +20,8 @@ import math
 from etl.orchestrator import run_etl_pipeline
 from etl.config import ETLConfig
 from retrieval.retrieval_service import get_retrieval_service
+from agents.research_agent import ResearchAgent
+from pydantic import BaseModel
 
 app = FastAPI(title="Financial Data ETL API", version="1.0.0")
 config = ETLConfig()
@@ -45,15 +47,7 @@ def load_parquet_file(filepath: Path) -> pd.DataFrame:
 
 
 def clean_dataframe_for_json(df: pd.DataFrame) -> list:
-    """
-    Convert DataFrame to JSON-serializable format, handling NaN values.
-    
-    Args:
-        df: DataFrame to convert
-    
-    Returns:
-        List of dictionaries with NaN values replaced by None
-    """
+    """Convert DataFrame to JSON-serializable format, handling NaN values."""
     # Convert to dict first, then clean (more reliable than DataFrame operations)
     records = df.to_dict(orient='records')
     
@@ -102,21 +96,16 @@ async def root():
             "search_news": "/api/search/news?query=...",
             "search_filings": "/api/search/filings?query=...",
             "search_transcripts": "/api/search/transcripts?query=...",
+            "agent_query": "/api/agent/query",
+            "agent_research": "/api/agent/research",
+            "agent_status": "/api/agent/status",
         }
     }
 
 
 @app.get("/api/ticker/{ticker}/features")
 async def get_features(ticker: str):
-    """
-    Get processed features for a ticker.
-    
-    Args:
-        ticker: Stock ticker symbol
-    
-    Returns:
-        JSON response with features data
-    """
+    """Get processed features for a ticker."""
     try:
         # Load features file (contains all tickers)
         df = load_parquet_file(config.FEATURES_FILE)
@@ -143,15 +132,7 @@ async def get_features(ticker: str):
 
 @app.get("/api/ticker/{ticker}/prices")
 async def get_prices(ticker: str):
-    """
-    Get processed prices for a ticker.
-    
-    Args:
-        ticker: Stock ticker symbol
-    
-    Returns:
-        JSON response with prices data
-    """
+    """Get processed prices for a ticker."""
     try:
         # Try combined file first
         if config.PROCESSED_PRICES_FILE.exists():
@@ -182,15 +163,7 @@ async def get_prices(ticker: str):
 
 @app.get("/api/ticker/{ticker}/news")
 async def get_news(ticker: str):
-    """
-    Get processed news for a ticker.
-    
-    Args:
-        ticker: Stock ticker symbol
-    
-    Returns:
-        JSON response with news data
-    """
+    """Get processed news for a ticker."""
     try:
         # Try combined file first
         if config.PROCESSED_NEWS_FILE.exists():
@@ -225,15 +198,7 @@ async def get_news(ticker: str):
 
 @app.get("/api/ticker/{ticker}/fundamentals")
 async def get_fundamentals(ticker: str):
-    """
-    Get processed fundamentals for a ticker.
-    
-    Args:
-        ticker: Stock ticker symbol
-    
-    Returns:
-        JSON response with fundamentals data
-    """
+    """Get processed fundamentals for a ticker."""
     try:
         # Try combined file first
         if config.PROCESSED_FUNDAMENTALS_FILE.exists():
@@ -281,16 +246,7 @@ def run_etl_background(ticker: str) -> Dict[str, Any]:
 
 @app.post("/api/etl/run/{ticker}")
 async def trigger_etl(ticker: str, background_tasks: BackgroundTasks):
-    """
-    Trigger ETL pipeline for a ticker.
-    
-    Args:
-        ticker: Stock ticker symbol
-        background_tasks: FastAPI background tasks
-    
-    Returns:
-        JSON response with ETL status
-    """
+    """Trigger ETL pipeline for a ticker."""
     ticker = ticker.upper()
     
     # Run ETL in background
@@ -306,15 +262,7 @@ async def trigger_etl(ticker: str, background_tasks: BackgroundTasks):
 
 @app.get("/api/etl/status/{ticker}")
 async def get_etl_status(ticker: str):
-    """
-    Check if processed data exists for a ticker.
-    
-    Args:
-        ticker: Stock ticker symbol
-    
-    Returns:
-        JSON response with availability status
-    """
+    """Check if processed data exists for a ticker."""
     ticker = ticker.upper()
     status = {
         "ticker": ticker,
@@ -373,19 +321,7 @@ async def semantic_search(
     k: int = 10,
     min_score: float = 0.0
 ):
-    """
-    Semantic search over financial documents.
-    
-    Args:
-        query: Natural language search query
-        doc_type: Optional filter by type (news, filing, transcript)
-        ticker: Optional filter by ticker symbol
-        k: Number of results to return
-        min_score: Minimum similarity score
-    
-    Returns:
-        Search results with metadata
-    """
+    """Semantic search over financial documents."""
     try:
         service = get_retrieval_service()
         results = service.search(
@@ -474,6 +410,89 @@ async def rebuild_indices(ticker: Optional[str] = None):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Index rebuild failed: {str(e)}")
+
+
+# Agent endpoints
+class AgentQueryRequest(BaseModel):
+    """Request model for agent queries."""
+    query: str
+    ticker: Optional[str] = None
+    agent_type: str = "research"
+
+
+# Global agent instance
+_research_agent = None
+
+def get_research_agent() -> ResearchAgent:
+    """Get or create global research agent instance."""
+    global _research_agent
+    if _research_agent is None:
+        _research_agent = ResearchAgent()
+    return _research_agent
+
+
+@app.post("/api/agent/query")
+async def agent_query(request: AgentQueryRequest):
+    """Query the research agent with a natural language question."""
+    try:
+        agent = get_research_agent()
+        
+        context = {}
+        if request.ticker:
+            context["ticker"] = request.ticker.upper()
+        
+        response = await agent.process_query(
+            query=request.query,
+            context=context if context else None
+        )
+        
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent query failed: {str(e)}")
+
+
+@app.post("/api/agent/research")
+async def research_topic(
+    topic: str,
+    ticker: Optional[str] = None,
+    doc_types: Optional[str] = None
+):
+    """Research a specific topic using the research agent."""
+    try:
+        agent = get_research_agent()
+        
+        doc_type_list = None
+        if doc_types:
+            doc_type_list = [dt.strip() for dt in doc_types.split(",")]
+        
+        response = await agent.research_topic(
+            topic=topic,
+            ticker=ticker.upper() if ticker else None,
+            doc_types=doc_type_list
+        )
+        
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Research failed: {str(e)}")
+
+
+@app.get("/api/agent/status")
+async def agent_status():
+    """Get status of the agent system."""
+    try:
+        agent = get_research_agent()
+        return {
+            "status": "active",
+            "agent": agent.name,
+            "model": agent.model,
+            "tools_available": len(agent.tools),
+            "memory_size": len(agent.memory)
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e)
+        }
 
 
 if __name__ == "__main__":

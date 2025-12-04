@@ -19,12 +19,7 @@ class RetrievalService:
     """
     
     def __init__(self, config: Optional[ETLConfig] = None):
-        """
-        Initialize retrieval service.
-        
-        Args:
-            config: ETLConfig instance (uses default if None)
-        """
+        """Initialize retrieval service."""
         if config is None:
             config = ETLConfig()
         
@@ -57,19 +52,7 @@ class RetrievalService:
         k: int = 10,
         min_score: float = 0.0
     ) -> List[Dict[str, Any]]:
-        """
-        Search for documents similar to query.
-        
-        Args:
-            query: Natural language query string
-            doc_type: Optional filter by document type ('news', 'filing', 'transcript')
-            ticker: Optional filter by ticker symbol
-            k: Number of results to return
-            min_score: Minimum similarity score threshold
-        
-        Returns:
-            List of relevant documents with metadata
-        """
+        """Search for documents similar to query."""
         # Get query embedding
         query_embedding = get_embedding(query)
         

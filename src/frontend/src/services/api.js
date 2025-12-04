@@ -199,5 +199,57 @@ export const rebuildIndices = async (ticker = null) => {
   }
 };
 
+/**
+ * Query the research agent with a natural language question
+ * @param {string} query - Natural language question
+ * @param {string} ticker - Optional ticker symbol
+ * @returns {Promise} Agent response
+ */
+export const queryAgent = async (query, ticker = null) => {
+  try {
+    const response = await api.post('/api/agent/query', {
+      query,
+      ticker: ticker ? ticker.toUpperCase() : null,
+      agent_type: 'research'
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || error.message || 'Agent query failed');
+  }
+};
+
+/**
+ * Research a specific topic using the research agent
+ * @param {string} topic - Research topic
+ * @param {string} ticker - Optional ticker symbol
+ * @param {string} docTypes - Optional comma-separated document types
+ * @returns {Promise} Research findings
+ */
+export const researchTopic = async (topic, ticker = null, docTypes = null) => {
+  try {
+    const params = new URLSearchParams({ topic });
+    if (ticker) params.append('ticker', ticker.toUpperCase());
+    if (docTypes) params.append('doc_types', docTypes);
+    
+    const response = await api.post(`/api/agent/research?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || error.message || 'Research failed');
+  }
+};
+
+/**
+ * Get agent system status
+ * @returns {Promise} Agent status
+ */
+export const getAgentStatus = async () => {
+  try {
+    const response = await api.get('/api/agent/status');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || error.message || 'Failed to get agent status');
+  }
+};
+
 export default api;
 

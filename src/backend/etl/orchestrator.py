@@ -36,16 +36,7 @@ from index_builder import build_combined_index
 
 
 def extract_data(ticker, config=None):
-    """
-    Extract (fetch) all raw data for a ticker.
-    
-    Args:
-        ticker: Stock ticker symbol
-        config: ETLConfig instance (uses default if None)
-    
-    Returns:
-        dict: Status dictionary with success/failure for each extraction step
-    """
+    """Extract (fetch) all raw data for a ticker."""
     if config is None:
         config = ETLConfig()
     
@@ -148,16 +139,7 @@ def extract_data(ticker, config=None):
 
 
 def transform_data(ticker, config=None):
-    """
-    Transform (process) all raw data for a ticker.
-    
-    Args:
-        ticker: Stock ticker symbol
-        config: ETLConfig instance (uses default if None)
-    
-    Returns:
-        dict: Status dictionary with success/failure for each transformation step
-    """
+    """Transform (process) all raw data for a ticker."""
     if config is None:
         config = ETLConfig()
     
@@ -244,16 +226,7 @@ def transform_data(ticker, config=None):
 
 
 def load_features(ticker, config=None):
-    """
-    Load (build and save) final features for a ticker.
-    
-    Args:
-        ticker: Stock ticker symbol
-        config: ETLConfig instance (uses default if None)
-    
-    Returns:
-        dict: Status dictionary with success/failure
-    """
+    """Load (build and save) final features for a ticker."""
     if config is None:
         config = ETLConfig()
     
@@ -280,16 +253,7 @@ def load_features(ticker, config=None):
 
 
 def build_vector_indices(ticker, config=None):
-    """
-    Build vector search indices from processed documents.
-    
-    Args:
-        ticker: Stock ticker symbol
-        config: ETLConfig instance (uses default if None)
-    
-    Returns:
-        dict: Status dictionary
-    """
+    """Build vector search indices from processed documents."""
     if config is None:
         config = ETLConfig()
     
@@ -312,19 +276,7 @@ def build_vector_indices(ticker, config=None):
 
 
 def run_etl_pipeline(ticker, config=None, skip_extract=False, skip_transform=False, skip_load=False):
-    """
-    Run the complete ETL pipeline for a ticker.
-    
-    Args:
-        ticker: Stock ticker symbol
-        config: ETLConfig instance (uses default if None)
-        skip_extract: Skip extraction step (default: False)
-        skip_transform: Skip transformation step (default: False)
-        skip_load: Skip load step (default: False)
-    
-    Returns:
-        dict: Complete status dictionary with results from all steps
-    """
+    """Run the complete ETL pipeline for a ticker."""
     if config is None:
         config = ETLConfig()
     

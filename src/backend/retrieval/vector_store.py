@@ -18,77 +18,7 @@ class FinancialVectorStore:
     """
     
     def __init__(self, dimension: int = 384, index_path: Optional[Path] = None):
-        """
-        Initialize vector store.
-        
-        Args:
-            dimension: Embedding dimension (384 for all-MiniLM-L6-v2)
-            index_path: Optional path to load existing index
-        """
-        self.dimension = dimension
-        self.index = faiss.IndexFlatL2(dimension)  # L2 distance for similarity
-        self.metadata = []  # Store document metadata
-        self.doc_type_map = {}  # Map document type to index ranges
-        
-        if index_path and index_path.exists():
-            self.load(index_path)
-    
-    def add_documents(
-        self, 
-        embeddings: np.ndarray, 
-        metadata: List[Dict[str, Any]],
-        doc_type: Optional[str] = None
-    ):
-        """
-        Add document embeddings with metadata.
-        
-        Args:
-            embeddings: numpy array of shape (n_docs, dimension)
-            metadata: List of metadata dicts (one per document)
-            doc_type: Optional document type label (e.g., 'news', 'filings')
-        """
-        if len(embeddings) != len(metadata):
-            raise ValueError("Number of embeddings must match number of metadata entries")
-        
-        if embeddings.shape[1] != self.dimension:
-            raise ValueError(f"Embedding dimension {embeddings.shape[1]} doesn't match store dimension {self.dimension}")
-        
-        start_idx = len(self.metadata)
-        end_idx = start_idx + len(embeddings)
-        
-        # Add to index
-        self.index.add(embeddings.astype('float32'))
-        
-        # Store metadata
-        self.metadata.extend(metadata)
-        
-        # Track document type ranges
-        if doc_type:
-            if doc_type not in self.doc_type_map:
-                self.doc_type_map[doc_type] = []
-            self.doc_type_map[doc_type].append((start_idx, end_idx))
-    
-    def search(
-        self, 
-        query_embedding: np.ndarray, 
-        k: int = 10,
-        doc_type: Optional[str] = None,
-        ticker: Optional[str] = None,
-        min_score: Optional[float] = None
-    ) -> List[Dict[str, Any]]:
-        """
-        Semantic search returning top-k similar documents.
-        
-        Args:
-            query_embedding: Query embedding vector (1D array)
-            k: Number of results to return
-            doc_type: Optional filter by document type
-            ticker: Optional filter by ticker symbol
-            min_score: Optional minimum similarity score threshold
-        
-        Returns:
-            List of result dictionaries with metadata and similarity score
-        """
+            """Initialize vector store."""
         if self.index.ntotal == 0:
             return []
         

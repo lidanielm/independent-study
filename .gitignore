@@ -22,7 +22,6 @@ build/
 .npm
 
 # IDE
-.DS_Store
 .vscode/
 .idea/
 *.swp
@@ -40,3 +39,16 @@ htmlcov/
 # Frontend
 src/frontend/dist/
 src/frontend/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json

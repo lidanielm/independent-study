@@ -9,15 +9,7 @@ from utils.nlp import get_embedding
 
 
 def split_speakers(text):
-    """
-    Split transcript text by speaker.
-    
-    Args:
-        text: Full transcript text
-    
-    Returns:
-        List of tuples: [(speaker, snippet), ...]
-    """
+    """Split transcript text by speaker."""
     # Try multiple patterns to match different transcript formats
     patterns = [
         r"^([A-Z][A-Za-z ]+?):\s*",  # Pattern for lines starting with speaker (multiline)
@@ -76,15 +68,7 @@ def split_speakers(text):
 
 
 def process_transcript_text(text):
-    """
-    Process a transcript text by splitting into segments and computing sentiment/embeddings.
-    
-    Args:
-        text: Full transcript text
-    
-    Returns:
-        List of dictionaries with speaker, text, sentiment, and embedding
-    """
+    """Process a transcript text by splitting into segments and computing sentiment/embeddings."""
     rows = []
     
     # Try to split by speakers first
@@ -139,16 +123,7 @@ def process_transcript_text(text):
 
 
 def process_transcript_file(input_path, output_path=None):
-    """
-    Process a transcript file (txt or parquet) by splitting into segments and computing features.
-    
-    Args:
-        input_path: Path to raw transcript file (.txt or .parquet)
-        output_path: Path to save processed transcript (default: same as input in processed directory)
-    
-    Returns:
-        DataFrame with processed transcript segments
-    """
+    """Process a transcript file (txt or parquet) by splitting into segments and computing features."""
     # Check if it's a text file or parquet
     if str(input_path).endswith('.txt'):
         # Read text file directly
@@ -194,16 +169,7 @@ def process_transcript_file(input_path, output_path=None):
 
 
 def process_transcript_from_text(text, output_path=None):
-    """
-    Process transcript text directly (not from a file).
-    
-    Args:
-        text: Transcript text string
-        output_path: Optional path to save processed transcript
-    
-    Returns:
-        DataFrame with processed transcript segments
-    """
+    """Process transcript text directly (not from a file)."""
     rows = process_transcript_text(text)
     result_df = pd.DataFrame(rows)
     

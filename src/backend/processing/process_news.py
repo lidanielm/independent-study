@@ -8,15 +8,7 @@ from utils.nlp import get_embedding
 
 
 def process_news_article(title):
-    """
-    Process a single news article title.
-    
-    Args:
-        title: News article title string
-    
-    Returns:
-        dict: Dictionary with clean_title, sentiment, and embedding
-    """
+    """Process a single news article title."""
     if not title or not isinstance(title, str):
         return {
             "clean_title": "",
@@ -33,16 +25,7 @@ def process_news_article(title):
 
 
 def process_news_file(input_path, output_path=None):
-    """
-    Process a news parquet file by adding sentiment and embeddings.
-    
-    Args:
-        input_path: Path to raw news parquet file
-        output_path: Path to save processed news (default: same as input in processed directory)
-    
-    Returns:
-        DataFrame with processed news data
-    """
+    """Process a news parquet file by adding sentiment and embeddings."""
     df = pd.read_parquet(input_path)
     
     # Process each article
@@ -66,16 +49,7 @@ def process_news_file(input_path, output_path=None):
 
 
 def process_all_news(input_dir="data/raw/news", output_dir="data/processed/news"):
-    """
-    Process all news files in the input directory.
-    
-    Args:
-        input_dir: Directory containing raw news parquet files
-        output_dir: Directory to save processed news files
-    
-    Returns:
-        List of processed DataFrames
-    """
+    """Process all news files in the input directory."""
     import glob
     
     files = glob.glob(os.path.join(input_dir, "*.parquet"))
@@ -91,16 +65,7 @@ def process_all_news(input_dir="data/raw/news", output_dir="data/processed/news"
 
 
 def combine_news_files(input_dir="data/raw/news", output_path="data/processed/news.parquet"):
-    """
-    Process and combine all news files into a single DataFrame.
-    
-    Args:
-        input_dir: Directory containing raw news parquet files
-        output_path: Path to save combined processed news
-    
-    Returns:
-        Combined DataFrame with all tickers
-    """
+    """Process and combine all news files into a single DataFrame."""
     processed = process_all_news(input_dir)
     
     if processed:

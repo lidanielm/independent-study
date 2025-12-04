@@ -10,35 +10,7 @@ from typing import List, Optional
 
 
 def download_filing_text(filing_url: str, save_path: Path):
-    """
-    Download a filing text file from SEC EDGAR.
-    
-    Args:
-        filing_url: URL to the filing document
-        save_path: Path to save the filing text
-    """
-    headers = {"User-Agent": "Daniel Li dli2004@seas.upenn.edu"}
-    r = requests.get(filing_url, headers=headers)
-    r.raise_for_status()
-    
-    os.makedirs(save_path.parent, exist_ok=True)
-    with open(save_path, "wb") as f:
-        f.write(r.content)
-
-
-def download_latest_filings(ticker: str, filing_types: List[str] = ["10-K", "10-Q"], max_filings: int = 5, save_dir: Optional[Path] = None):
-    """
-    Download the latest SEC filings for a ticker.
-    
-    Args:
-        ticker: Stock ticker symbol
-        filing_types: List of filing types to download (e.g., ["10-K", "10-Q"])
-        max_filings: Maximum number of filings to download per type
-        save_dir: Directory to save filings (default: data/raw/filings)
-    
-    Returns:
-        List of downloaded file paths
-    """
+    """Download a filing text file from SEC EDGAR."""
     if save_dir is None:
         save_dir = Path("data/raw/filings")
     save_dir.mkdir(parents=True, exist_ok=True)

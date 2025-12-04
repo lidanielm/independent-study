@@ -4,15 +4,17 @@ import ETLTrigger from './components/ETLTrigger';
 import StatusMonitor from './components/StatusMonitor';
 import DataViewer from './components/DataViewer';
 import SearchInterface from './components/SearchInterface';
+import AgentChat from './components/AgentChat';
 
 const Navigation = () => {
   const location = useLocation();
   
   const navItems = [
-    { path: '/', label: 'ETL Pipeline' },
-    { path: '/data', label: 'Data Explorer' },
+    { path: '/', label: 'Dashboard' },
     { path: '/search', label: 'Search' },
-    { path: '/dashboard', label: 'Dashboard' },
+    { path: '/agent', label: 'AI Agent' },
+    { path: '/etl', label: 'ETL Pipeline' },
+    { path: '/data', label: 'Data Explorer' },
   ];
 
   return (
@@ -21,7 +23,7 @@ const Navigation = () => {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">ETL Workflow</h1>
+              <h1 className="text-xl font-bold text-gray-900">Financial Research System</h1>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {navItems.map((item) => (
@@ -119,21 +121,35 @@ const SearchPage = () => {
   );
 };
 
+const AgentPage = () => {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">AI Research Agent</h1>
+          <p className="mt-2 text-gray-600">Ask questions and get intelligent answers synthesized from financial documents</p>
+        </div>
+        <AgentChat />
+      </div>
+    </div>
+  );
+};
+
 const DashboardPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="mt-2 text-gray-600">Overview of ETL pipeline activity</p>
+          <h1 className="text-3xl font-bold text-gray-900">Financial Research Dashboard</h1>
+          <p className="mt-2 text-gray-600">Welcome to your financial data research platform. Get started by exploring the tools below.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Quick Start</h3>
-            <p className="text-sm text-gray-600 mb-4">Trigger a new ETL pipeline</p>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">ETL Pipeline</h3>
+            <p className="text-sm text-gray-600 mb-4">Trigger and monitor ETL pipelines</p>
             <Link
-              to="/"
+              to="/etl"
               className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
             >
               Go to ETL Pipeline
@@ -141,7 +157,7 @@ const DashboardPage = () => {
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Explore Data</h3>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Data Explorer</h3>
             <p className="text-sm text-gray-600 mb-4">View processed financial data</p>
             <Link
               to="/data"
@@ -153,7 +169,7 @@ const DashboardPage = () => {
 
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Semantic Search</h3>
-            <p className="text-sm text-gray-600 mb-4">Search documents using AI</p>
+            <p className="text-sm text-gray-600 mb-4">Search documents using natural language</p>
             <Link
               to="/search"
               className="inline-block bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
@@ -163,6 +179,17 @@ const DashboardPage = () => {
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">AI Research Agent</h3>
+            <p className="text-sm text-gray-600 mb-4">Chat with AI to research financial topics</p>
+            <Link
+              to="/agent"
+              className="inline-block bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+            >
+              Go to AI Agent
+            </Link>
+          </div>
+
+          {/* <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">API Documentation</h3>
             <p className="text-sm text-gray-600 mb-4">View API endpoints and usage</p>
             <a
@@ -173,19 +200,20 @@ const DashboardPage = () => {
             >
               Open API Docs
             </a>
-          </div>
+          </div> */}
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        {/* <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-bold text-gray-800 mb-4">Getting Started</h2>
           <ol className="list-decimal list-inside space-y-2 text-gray-600">
-            <li>Navigate to the ETL Pipeline page</li>
+            <li>Navigate to the <Link to="/etl" className="text-blue-600 hover:text-blue-800">ETL Pipeline</Link> page</li>
             <li>Enter a ticker symbol (e.g., AAPL, MSFT, GOOG)</li>
             <li>Click "Trigger ETL Pipeline" to start processing</li>
             <li>Monitor the status in real-time</li>
-            <li>Once complete, explore the data in the Data Explorer</li>
+            <li>Once complete, explore the data in the <Link to="/data" className="text-green-600 hover:text-green-800">Data Explorer</Link></li>
+            <li>Use <Link to="/search" className="text-purple-600 hover:text-purple-800">Semantic Search</Link> or the <Link to="/agent" className="text-indigo-600 hover:text-indigo-800">AI Agent</Link> to query the data</li>
           </ol>
-        </div>
+        </div> */}
       </div>
     </div>
   );
@@ -197,10 +225,11 @@ function App() {
       <div className="min-h-screen bg-gray-50">
         <Navigation />
         <Routes>
-          <Route path="/" element={<ETLPipelinePage />} />
-          <Route path="/data" element={<DataExplorerPage />} />
+          <Route path="/" element={<DashboardPage />} />
           <Route path="/search" element={<SearchPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/agent" element={<AgentPage />} />
+          <Route path="/etl" element={<ETLPipelinePage />} />
+          <Route path="/data" element={<DataExplorerPage />} />
         </Routes>
       </div>
     </Router>

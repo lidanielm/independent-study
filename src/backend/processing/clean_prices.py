@@ -4,15 +4,7 @@ import os
 
 
 def clean_price_file(path):
-    """
-    Clean and normalize a single price file.
-    
-    Args:
-        path: Path to parquet file with price data
-    
-    Returns:
-        Cleaned DataFrame with normalized column names
-    """
+    """Clean and normalize a single price file."""
     df = pd.read_parquet(path)
     
     # Handle multi-level columns (from yfinance)
@@ -93,16 +85,7 @@ def clean_price_file(path):
 
 
 def clean_all_prices(input_dir="data/raw/prices", output_dir="data/processed/prices"):
-    """
-    Clean all price files in the input directory.
-    
-    Args:
-        input_dir: Directory containing raw price parquet files
-        output_dir: Directory to save cleaned price files
-    
-    Returns:
-        List of cleaned DataFrames
-    """
+    """Clean all price files in the input directory."""
     files = glob.glob(os.path.join(input_dir, "*.parquet"))
     cleaned = []
     
@@ -142,16 +125,7 @@ def clean_all_prices(input_dir="data/raw/prices", output_dir="data/processed/pri
 
 
 def combine_price_files(input_dir="data/raw/prices", output_path="data/processed/prices.parquet"):
-    """
-    Clean and combine all price files into a single DataFrame.
-    
-    Args:
-        input_dir: Directory containing raw price parquet files
-        output_path: Path to save combined cleaned prices
-    
-    Returns:
-        Combined DataFrame with all tickers
-    """
+    """Clean and combine all price files into a single DataFrame."""
     cleaned = clean_all_prices(input_dir)
     
     if cleaned:

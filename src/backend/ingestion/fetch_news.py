@@ -5,17 +5,7 @@ import yfinance as yf
 import feedparser
 
 def fetch_news(ticker, max_articles=None, source="yfinance"):
-    """
-    Fetch news articles for a given ticker.
-    
-    Args:
-        ticker: Stock ticker symbol (e.g., "AAPL")
-        max_articles: Maximum number of articles to return (None for all)
-        source: Source to use - "yfinance" (default) or "google"
-    
-    Returns:
-        DataFrame with columns: title, link, published, publisher, ticker
-    """
+    """Fetch news articles for a given ticker."""
     articles = []
     
     if source == "yfinance":
@@ -98,18 +88,7 @@ def fetch_news(ticker, max_articles=None, source="yfinance"):
     return df
 
 def fetch_news_and_save(ticker, max_articles=None, save_dir="data/raw/news", source="yfinance"):
-    """
-    Fetch news and save to parquet file.
-    
-    Args:
-        ticker: Stock ticker symbol
-        max_articles: Maximum number of articles to fetch
-        save_dir: Directory to save news data
-        source: Source to use - "yfinance" or "google"
-    
-    Returns:
-        DataFrame with news articles
-    """
+    """Fetch news and save to parquet file."""
     os.makedirs(save_dir, exist_ok=True)
     
     df = fetch_news(ticker, max_articles, source)
