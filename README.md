@@ -3,8 +3,8 @@
 A comprehensive financial data pipeline and analytics platform that extracts, processes, and analyzes stock market data with semantic search capabilities.
 
 ## Features
-
-### Data Ingestion & Processing
+Data ingestion & processing, ETL pipeline, semantic search, AI research agent, data visualization, frontend UI
+<!-- ### Data Ingestion & Processing
 - Price Data: Historical stock prices from Yahoo Finance (5+ years)
 - News Data: Financial news articles with sentiment analysis
 - SEC Filings: 10-K and 10-Q filings with section extraction (MD&A, Risk Factors)
@@ -26,7 +26,7 @@ A comprehensive financial data pipeline and analytics platform that extracts, pr
 - Filtered Search: Search by ticker or document type
 - Index Management: Rebuild indices on-demand
 
-### AI Research Agent 🤖
+### AI Research Agent
 - Natural Language Queries: Ask questions in plain English
 - Intelligent Synthesis: Combines information from multiple sources
 - Document Search: Automatically searches news, filings, and transcripts
@@ -43,7 +43,7 @@ A comprehensive financial data pipeline and analytics platform that extracts, pr
 - Data Explorer: Browse processed data by ticker
 - Search Interface: Semantic search across financial documents
 - AI Agent Chat: Conversational interface for research queries
-- Status Monitor: Real-time pipeline status tracking
+- Status Monitor: Real-time pipeline status tracking -->
 
 ## Architecture
 
@@ -122,7 +122,7 @@ Via Python:
 ```bash
 python test_etl.py
 ```
-
+<!-- 
 ## API Endpoints
 
 ### Data Endpoints
@@ -145,61 +145,35 @@ python test_etl.py
 ### Agent Endpoints
 - `POST /api/agent/query` - Query the research agent with natural language
 - `POST /api/agent/research` - Research a specific topic
-- `GET /api/agent/status` - Get agent system status
+- `GET /api/agent/status` - Get agent system status -->
 
 ## Technology Stack
 
 ### Backend
-- FastAPI: REST API framework
+FastAPI, Pandas, VADER, OpenAI, yfinance, secedgar
+<!-- - FastAPI: REST API framework
 - Pandas: Data processing
 - FAISS: Vector similarity search
 - Sentence Transformers: Text embeddings
 - VADER: Sentiment analysis
 - OpenAI: LLM for AI agents
 - yfinance: Stock price data
-- secedgar: SEC filings access
+- secedgar: SEC filings access -->
 
 ### Frontend
-- React: UI framework
+React, Vite, TailwindCSS, Axios
+<!-- - React: UI framework
 - Vite: Build tool
 - Tailwind CSS: Styling
 - Recharts: Data visualization
-- Axios: HTTP client
+- Axios: HTTP client -->
 
-## Data Flow
+<!-- ## Data Flow
 
 1. Extract: Fetch data from APIs (Yahoo Finance, SEC EDGAR, earningscall)
 2. Transform: Clean, normalize, and compute features
 3. Load: Save processed data and build vector indices
-4. Search: Query vector indices for semantic search
-
-## Project Structure
-
-```
-.
-├── src/
-│   ├── backend/
-│   │   ├── api/              # FastAPI application
-│   │   ├── etl/              # ETL orchestration
-│   │   ├── ingestion/        # Data extraction
-│   │   ├── processing/       # Data transformation
-│   │   ├── retrieval/        # Vector search
-│   │   └── utils/            # Utilities
-│   └── frontend/             # React application
-├── data/                     # Data storage (gitignored)
-├── test_etl.py              # ETL test script
-├── test_vector_retrieval.py # Vector search test
-└── README.md                # This file
-```
-
-## AI Agent System
-
-The platform includes an AI Research Agent that can answer questions about financial data using natural language. See [AGENT_SETUP.md](AGENT_SETUP.md) for detailed setup and usage instructions.
-
-**Quick Start with Agent:**
-1. Set `OPENAI_API_KEY` in your `.env` file
-2. Navigate to `/agent` in the web interface
-3. Ask questions like "What are the main risks for AAPL?" or "Search for AI-related news"
+4. Search: Query vector indices for semantic search -->
 
 ## AI Usage
 
