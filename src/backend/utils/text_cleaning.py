@@ -6,7 +6,7 @@ import re
 import html
 
 def clean_text(text, remove_html=True, remove_punctuation=False, lowercase=True, normalize_whitespace=True):
-        """Clean text by removing HTML, normalizing whitespace, etc."""
+    """Clean text by removing HTML, normalizing whitespace, etc."""
     if not text or not isinstance(text, str):
         return ""
     
@@ -33,7 +33,7 @@ def clean_text(text, remove_html=True, remove_punctuation=False, lowercase=True,
     return cleaned
 
 def remove_special_chars(text, keep_chars=None):
-        """Remove special characters from text, optionally keeping specified characters."""
+    """Remove special characters from text, optionally keeping specified characters."""
     if not text or not isinstance(text, str):
         return ""
     
@@ -47,7 +47,7 @@ def remove_special_chars(text, keep_chars=None):
     return re.sub(pattern, '', text)
 
 def normalize_whitespace(text):
-        """Normalize whitespace in text (multiple spaces/tabs/newlines to single space)."""
+    """Normalize whitespace in text (multiple spaces/tabs/newlines to single space)."""
     if not text or not isinstance(text, str):
         return ""
     
@@ -56,7 +56,7 @@ def normalize_whitespace(text):
     return normalized.strip()
 
 def remove_urls(text):
-        """Remove URLs from text."""
+    """Remove URLs from text."""
     if not text or not isinstance(text, str):
         return ""
     
@@ -66,7 +66,7 @@ def remove_urls(text):
     return url_pattern.sub('', text)
 
 def remove_emails(text):
-        """Remove email addresses from text."""
+    """Remove email addresses from text."""
     if not text or not isinstance(text, str):
         return ""
     
@@ -74,7 +74,7 @@ def remove_emails(text):
     return email_pattern.sub('', text)
 
 def clean_financial_text(text):
-        """Clean text specifically for financial documents (10-K, earnings calls, etc.).
+    """Clean text specifically for financial documents (10-K, earnings calls, etc.).
     Removes HTML, normalizes whitespace, but keeps punctuation for financial terms."""
     if not text or not isinstance(text, str):
         return ""

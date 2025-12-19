@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { searchDocuments, searchNews, searchFilings, searchTranscripts, rebuildIndices } from '../services/api';
+import { searchDocuments, searchNews, searchFilings, searchTranscripts, rebuildIndices, getDocument } from '../services/api';
+import DocumentModal from './DocumentModal';
 
 const SearchInterface = () => {
   const [query, setQuery] = useState('');
@@ -11,6 +12,9 @@ const SearchInterface = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [rebuilding, setRebuilding] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loadingDocument, setLoadingDocument] = useState(false);
 
   const handleSearch = async () => {
     if (!query.trim()) {
@@ -73,11 +77,30 @@ const SearchInterface = () => {
     return colors[type] || 'bg-gray-100 text-gray-800';
   };
 
+  const handleCardClick = async (result) => {
+    setLoadingDocument(true);
+    setError(null);
+    try {
+      const fullDocument = await getDocument(result);
+      setSelectedDocument(fullDocument);
+      setIsModalOpen(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingDocument(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedDocument(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Search Form */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Semantic Search</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Search</h2>
         
         <div className="space-y-4">
           {/* Query Input */}
@@ -205,7 +228,8 @@ const SearchInterface = () => {
               {results.results.map((result, index) => (
                 <div
                   key={index}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  onClick={() => handleCardClick(result)}
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -263,6 +287,7 @@ const SearchInterface = () => {
                       href={result.link}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="text-blue-600 hover:text-blue-800 text-sm mt-2 inline-block"
                     >
                       View Source →
@@ -287,6 +312,13 @@ const SearchInterface = () => {
           </p>
         </div>
       )}
+
+      {/* Document Modal */}
+      <DocumentModal
+        document={selectedDocument}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+      />
     </div>
   );
 };

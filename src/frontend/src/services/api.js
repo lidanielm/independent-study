@@ -106,7 +106,7 @@ export const getFundamentals = async (ticker) => {
 };
 
 /**
- * Semantic search across all document types
+ * Search across all document types
  * @param {string} query - Search query
  * @param {string} docType - Optional document type filter (news, filing, transcript)
  * @param {string} ticker - Optional ticker filter
@@ -248,6 +248,26 @@ export const getAgentStatus = async () => {
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.detail || error.message || 'Failed to get agent status');
+  }
+};
+
+/**
+ * Get full document by metadata from search result
+ * @param {Object} metadata - Document metadata from search result
+ * @returns {Promise} Full document data
+ */
+export const getDocument = async (metadata) => {
+  try {
+    const response = await api.post('/api/document', {
+      doc_type: metadata.doc_type,
+      ticker: metadata.ticker,
+      index: metadata.index,
+      filing_file: metadata.filing_file,
+      transcript_file: metadata.transcript_file,
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || error.message || 'Failed to get document');
   }
 };
 

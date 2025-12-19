@@ -4,7 +4,11 @@ import os
 from dotenv import load_dotenv
 from secedgar.cik_lookup import CIKLookup
 
-load_dotenv()
+try:
+    # In some sandboxed environments `.env` may be unreadable or absent; treat it as optional.
+    load_dotenv()
+except Exception:
+    pass
 
 API_KEY = os.getenv("AV_API_KEY")
 

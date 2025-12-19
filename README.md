@@ -1,9 +1,9 @@
-# Financial Data ETL & Analytics Platform
+# Financial Research Platform
 
-A comprehensive financial data pipeline and analytics platform that extracts, processes, and analyzes stock market data with semantic search capabilities.
+A comprehensive financial research platform that extracts, processes, and analyzes stock market data with search capabilities.
 
 ## Features
-Data ingestion & processing, ETL pipeline, semantic search, AI research agent, data visualization, frontend UI
+Data ingestion & processing, ETL pipeline, search, AI research agent, data visualization, frontend UI
 <!-- ### Data Ingestion & Processing
 - Price Data: Historical stock prices from Yahoo Finance (5+ years)
 - News Data: Financial news articles with sentiment analysis
@@ -20,7 +20,7 @@ Data ingestion & processing, ETL pipeline, semantic search, AI research agent, d
   - Text embeddings for semantic search
 - Vector Indices: FAISS-based vector stores for efficient similarity search
 
-### Semantic Search
+### Search
 - Vector Retrieval: Search across news, filings, and transcripts using natural language
 - Similarity Search: Find relevant documents based on semantic meaning
 - Filtered Search: Search by ticker or document type
@@ -41,7 +41,7 @@ Data ingestion & processing, ETL pipeline, semantic search, AI research agent, d
 ### Web Interface
 - ETL Dashboard: Trigger and monitor ETL pipelines
 - Data Explorer: Browse processed data by ticker
-- Search Interface: Semantic search across financial documents
+- Search Interface: Search across financial documents
 - AI Agent Chat: Conversational interface for research queries
 - Status Monitor: Real-time pipeline status tracking -->
 
@@ -136,7 +136,7 @@ python test_etl.py
 - `GET /api/etl/status/{ticker}` - Get pipeline status
 
 ### Search Endpoints
-- `GET /api/search?query=...&k=10` - Semantic search across all documents
+- `GET /api/search?query=...&k=10` - Search across all documents
 - `GET /api/search/news?query=...&ticker=AAPL` - Search news
 - `GET /api/search/filings?query=...&ticker=AAPL` - Search filings
 - `GET /api/search/transcripts?query=...&ticker=AAPL` - Search transcripts

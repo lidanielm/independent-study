@@ -18,6 +18,7 @@ import numpy as np
 import math
 
 from etl.orchestrator import run_etl_pipeline
+from etl.auto_orchestrator import run_autonomous
 from etl.config import ETLConfig
 from retrieval.retrieval_service import get_retrieval_service
 from agents.research_agent import ResearchAgent
@@ -314,15 +315,33 @@ async def get_etl_status(ticker: str):
 
 
 @app.get("/api/search")
-async def semantic_search(
+async def search(
     query: str,
     doc_type: Optional[str] = None,
     ticker: Optional[str] = None,
     k: int = 10,
     min_score: float = 0.0
 ):
-    """Semantic search over financial documents."""
+    """Search over financial documents with automatic ETL pipeline.
+    
+    When ticker is provided, results for that ticker are prioritized (shown first)
+    but other relevant results are still included if there aren't enough ticker matches.
+    """
     try:
+        # Run automatic ETL pipeline to ensure data is up-to-date
+        auto_status = run_autonomous(query, ticker_hint=ticker)
+        
+        # Refresh retrieval indices so new data is visible
+        try:
+            service = get_retrieval_service()
+            # Don't filter by ticker when rebuilding - include all documents in index
+            # Search will filter by ticker as needed
+            service.rebuild_indices(ticker=None)
+        except Exception as refresh_exc:
+            # Log but don't fail the request if refresh fails
+            print(f"Warning: Index refresh failed: {refresh_exc}")
+        
+        # Perform search
         service = get_retrieval_service()
         results = service.search(
             query=query,
@@ -335,7 +354,8 @@ async def semantic_search(
         return {
             "query": query,
             "count": len(results),
-            "results": results
+            "results": results,
+            "auto_etl": auto_status
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
@@ -399,17 +419,126 @@ async def search_transcripts(
 
 
 @app.post("/api/search/rebuild-indices")
-async def rebuild_indices(ticker: Optional[str] = None):
+async def rebuild_indices(ticker: Optional[str] = None, doc_types: Optional[str] = None):
     """Rebuild vector indices (useful after ETL updates)."""
     try:
         service = get_retrieval_service()
-        service.rebuild_indices(ticker=ticker)
+        doc_type_set = None
+        if doc_types:
+            doc_type_set = {dt.strip() for dt in doc_types.split(",") if dt.strip()}
+        service.rebuild_indices(ticker=ticker, doc_types=doc_type_set)
         return {
             "status": "success",
             "message": f"Indices rebuilt for ticker: {ticker or 'all'}"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Index rebuild failed: {str(e)}")
+
+
+class DocumentRequest(BaseModel):
+    """Request model for retrieving full document."""
+    doc_type: str
+    ticker: Optional[str] = None
+    index: Optional[int] = None
+    filing_file: Optional[str] = None
+    transcript_file: Optional[str] = None
+
+
+@app.post("/api/document")
+async def get_document(request: DocumentRequest):
+    """Retrieve full document by metadata from search result."""
+    try:
+        doc_type = request.doc_type
+        ticker = request.ticker
+        
+        # Remove embedding column for API response (too large)
+        def remove_embedding(data: dict) -> dict:
+            if isinstance(data, dict):
+                return {k: v for k, v in data.items() if k != 'embedding'}
+            return data
+        
+        if doc_type == 'news':
+            # Load news parquet file
+            if config.PROCESSED_NEWS_FILE.exists():
+                df = pd.read_parquet(config.PROCESSED_NEWS_FILE)
+                if ticker and 'ticker' in df.columns:
+                    df = df[df['ticker'].str.upper() == ticker.upper()]
+            else:
+                filepath = config.PROCESSED_NEWS_DIR / f"{ticker.upper()}_news.parquet"
+                if not filepath.exists():
+                    raise HTTPException(status_code=404, detail=f"News file not found for {ticker}")
+                df = pd.read_parquet(filepath)
+            
+            if df.empty:
+                raise HTTPException(status_code=404, detail="No news data found")
+            
+            # Get document by index if provided, otherwise return first match
+            if request.index is not None and request.index < len(df):
+                doc = df.iloc[request.index].to_dict()
+            else:
+                # Try to match by title if available
+                doc = df.iloc[0].to_dict()
+            
+            return {
+                "doc_type": "news",
+                "document": clean_dataframe_for_json([doc])[0]
+            }
+        
+        elif doc_type == 'filing':
+            if not request.filing_file:
+                raise HTTPException(status_code=400, detail="filing_file is required for filing documents")
+            
+            # Load specific filing file
+            filepath = config.PROCESSED_FILINGS_DIR / f"{request.filing_file}.parquet"
+            if not filepath.exists():
+                raise HTTPException(status_code=404, detail=f"Filing file not found: {request.filing_file}")
+            
+            df = pd.read_parquet(filepath)
+            if df.empty:
+                raise HTTPException(status_code=404, detail="Filing file is empty")
+            
+            # Get document by index if provided
+            if request.index is not None and request.index < len(df):
+                doc = df.iloc[request.index].to_dict()
+            else:
+                doc = df.iloc[0].to_dict()
+            
+            return {
+                "doc_type": "filing",
+                "document": clean_dataframe_for_json([doc])[0]
+            }
+        
+        elif doc_type == 'transcript':
+            if not request.transcript_file:
+                raise HTTPException(status_code=400, detail="transcript_file is required for transcript documents")
+            
+            # Load specific transcript file
+            filepath = config.PROCESSED_TRANSCRIPTS_DIR / f"{request.transcript_file}.parquet"
+            if not filepath.exists():
+                raise HTTPException(status_code=404, detail=f"Transcript file not found: {request.transcript_file}")
+            
+            df = pd.read_parquet(filepath)
+            if df.empty:
+                raise HTTPException(status_code=404, detail="Transcript file is empty")
+            
+            # Get document by index if provided
+            if request.index is not None and request.index < len(df):
+                doc = df.iloc[request.index].to_dict()
+            else:
+                doc = df.iloc[0].to_dict()
+            
+            return {
+                "doc_type": "transcript",
+                "document": clean_dataframe_for_json([doc])[0]
+            }
+        
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported document type: {doc_type}")
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve document: {str(e)}")
 
 
 # Agent endpoints
@@ -435,18 +564,34 @@ def get_research_agent() -> ResearchAgent:
 async def agent_query(request: AgentQueryRequest):
     """Query the research agent with a natural language question."""
     try:
+        auto_status = run_autonomous(request.query, ticker_hint=request.ticker)
+        # Refresh retrieval indices so new data is visible to the agent
+        try:
+            service = get_retrieval_service()
+            # Don't filter by ticker when rebuilding - include all documents in index
+            # Search will filter by ticker as needed
+            service.rebuild_indices(ticker=None)
+        except Exception as refresh_exc:
+            # Do not fail the request if refresh fails; include status
+            auto_status = {"error": f"index refresh failed: {refresh_exc}", "intent": auto_status}
         agent = get_research_agent()
         
         context = {}
-        if request.ticker:
-            context["ticker"] = request.ticker.upper()
+        # Use inferred ticker from auto_status if available, otherwise use provided ticker
+        inferred_ticker = None
+        if isinstance(auto_status, dict):
+            inferred_ticker = auto_status.get("ticker")
+        
+        ticker_to_use = inferred_ticker or request.ticker
+        if ticker_to_use:
+            context["ticker"] = ticker_to_use.upper()
         
         response = await agent.process_query(
             query=request.query,
             context=context if context else None
         )
         
-        return response
+        return {"auto": auto_status, "response": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent query failed: {str(e)}")
 

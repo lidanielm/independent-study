@@ -112,7 +112,7 @@ const SearchPage = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Semantic Search</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Search</h1>
           <p className="mt-2 text-gray-600">Search across news, SEC filings, and earnings transcripts using natural language</p>
         </div>
         <SearchInterface />
@@ -168,7 +168,7 @@ const DashboardPage = () => {
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Semantic Search</h3>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Search</h3>
             <p className="text-sm text-gray-600 mb-4">Search documents using natural language</p>
             <Link
               to="/search"
@@ -211,7 +211,7 @@ const DashboardPage = () => {
             <li>Click "Trigger ETL Pipeline" to start processing</li>
             <li>Monitor the status in real-time</li>
             <li>Once complete, explore the data in the <Link to="/data" className="text-green-600 hover:text-green-800">Data Explorer</Link></li>
-            <li>Use <Link to="/search" className="text-purple-600 hover:text-purple-800">Semantic Search</Link> or the <Link to="/agent" className="text-indigo-600 hover:text-indigo-800">AI Agent</Link> to query the data</li>
+            <li>Use <Link to="/search" className="text-purple-600 hover:text-purple-800">Search</Link> or the <Link to="/agent" className="text-indigo-600 hover:text-indigo-800">AI Agent</Link> to query the data</li>
           </ol>
         </div> */}
       </div>

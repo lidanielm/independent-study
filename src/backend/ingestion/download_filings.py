@@ -3,67 +3,84 @@ Download actual SEC filing text files (not just metadata).
 """
 
 import requests
-import os
 from pathlib import Path
-from secedgar.cik_lookup import CIKLookup
 from typing import List, Optional
 
+from secedgar.cik_lookup import CIKLookup
 
-def download_filing_text(filing_url: str, save_path: Path):
-    """Download a filing text file from SEC EDGAR."""
-    if save_dir is None:
-        save_dir = Path("data/raw/filings")
-    save_dir.mkdir(parents=True, exist_ok=True)
-    
-    from fetch_filings import fetch_filings
-    
-    # Get filing metadata
-    filings_data = fetch_filings(ticker)
-    
-    if "filings" not in filings_data or "recent" not in filings_data["filings"]:
-        print(f"No filings found for {ticker}")
+from etl.config import ETLConfig
+from ingestion.fetch_filings import fetch_filings
+
+
+USER_AGENT = "DocETL/1.0 (contact: dli2004@seas.upenn.edu)"
+
+
+def _build_filing_url(cik: str, accession: str, primary_document: str) -> str:
+    accession_clean = accession.replace("-", "")
+    return f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession_clean}/{primary_document}"
+
+
+def _download_text(url: str, save_path: Path) -> None:
+    resp = requests.get(url, headers={"User-Agent": USER_AGENT})
+    resp.raise_for_status()
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    # Some filings are HTML; keep raw bytes but save as text for downstream parsing
+    save_path.write_bytes(resp.content)
+
+
+def download_recent_filing_documents(
+    ticker: str,
+    filing_types: Optional[List[str]] = None,
+    max_filings: int = 4,
+    save_dir: Optional[Path] = None,
+) -> List[Path]:
+    """
+    Download recent filing documents (10-K/10-Q by default) as raw text/html files.
+
+    Returns a list of saved file paths.
+    """
+    cfg = ETLConfig()
+    save_dir = save_dir or cfg.RAW_FILINGS_DOCS_DIR
+    filing_types = filing_types or cfg.FILING_TYPES
+
+    data = fetch_filings(ticker)
+    if "filings" not in data or "recent" not in data["filings"]:
+        print(f"[FILINGS] No filings metadata for {ticker}")
         return []
-    
-    recent = filings_data["filings"]["recent"]
-    downloaded = []
-    
-    # Get CIK for URL construction
-    cik = str(CIKLookup(lookups=[ticker], user_agent="Daniel Li dli2004@seas.upenn.edu").lookup_dict[ticker]).zfill(10)
-    
+
+    recent = data["filings"]["recent"]
+    forms = recent.get("form", [])
+    filing_dates = recent.get("filingDate", [])
+    primary_docs = recent.get("primaryDocument", [])
+    accessions = recent.get("accessionNumber", [])
+
+    cik = str(CIKLookup(lookups=[ticker], user_agent=USER_AGENT).lookup_dict[ticker]).zfill(10)
     counts = {ft: 0 for ft in filing_types}
-    
-    for i in range(len(recent.get("form", []))):
-        form_type = recent["form"][i]
-        
+    downloaded: List[Path] = []
+
+    for idx, form_type in enumerate(forms):
         if form_type not in filing_types:
             continue
-        
         if counts[form_type] >= max_filings:
             continue
-        
-        # Get filing date
-        filing_date = recent["filingDate"][i]
-        accession = recent["accessionNumber"][i].replace("-", "")
-        
-        # Construct URL
-        if "primaryDocument" in recent and i < len(recent["primaryDocument"]):
-            primary_doc = recent["primaryDocument"][i]
-        else:
-            # Default document name
-            primary_doc = f"{form_type.lower()}.txt"
-        
-        filing_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/{primary_doc}"
-        
-        # Create filename
-        filename = f"{ticker}_{form_type}_{filing_date}.txt"
+
+        filing_date = filing_dates[idx] if idx < len(filing_dates) else ""
+        accession = accessions[idx] if idx < len(accessions) else ""
+        primary_doc = primary_docs[idx] if idx < len(primary_docs) else f"{form_type.lower()}.txt"
+
+        if not accession:
+            continue
+
+        url = _build_filing_url(cik, accession, primary_doc)
+        filename = f"{ticker}_{form_type}_{filing_date or idx}.txt"
         filepath = save_dir / filename
-        
+
         try:
-            download_filing_text(filing_url, filepath)
-            downloaded.append(filepath)
+            _download_text(url, filepath)
             counts[form_type] += 1
-            print(f"Downloaded {form_type} filed on {filing_date}: {filename}")
-        except Exception as e:
-            print(f"Failed to download {form_type} from {filing_date}: {e}")
-    
+            downloaded.append(filepath)
+            print(f"[FILINGS] Downloaded {form_type} ({filing_date}) -> {filepath.name}")
+        except Exception as exc:
+            print(f"[FILINGS] Failed {form_type} ({filing_date}): {exc}")
+
     return downloaded

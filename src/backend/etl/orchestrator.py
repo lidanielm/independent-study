@@ -20,6 +20,7 @@ from fetch_prices import fetch_prices_and_save
 from fetch_news import fetch_news_and_save
 from fetch_earnings_calls import download_transcripts_to_dataframe
 from fetch_filings import fetch_filings, filings_to_dataframe
+from ingestion.download_filings import download_recent_filing_documents
 
 # Import processing modules
 sys.path.insert(0, str(backend_path / "processing"))
@@ -85,7 +86,8 @@ def extract_data(ticker, config=None):
         download_transcripts_to_dataframe(
             ticker,
             max_transcripts=config.MAX_TRANSCRIPTS,
-            save_dir=str(config.RAW_TRANSCRIPTS_DIR)
+            save_dir=str(config.RAW_TRANSCRIPTS_DIR),
+            api_key=config.API_NINJAS_API_KEY,
         )
         status["transcripts"]["success"] = True
         print(f"[EXTRACT] ✓ Transcripts extracted for {ticker}")
@@ -101,6 +103,13 @@ def extract_data(ticker, config=None):
         if not df.empty:
             save_path = config.RAW_FILINGS_DIR / f"{ticker}_filings.parquet"
             df.to_parquet(save_path, index=False)
+            # Download actual filing documents for DocETL processing
+            download_recent_filing_documents(
+                ticker,
+                filing_types=config.FILING_TYPES,
+                max_filings=config.MAX_FILINGS,
+                save_dir=config.RAW_FILINGS_DOCS_DIR,
+            )
             status["filings"]["success"] = True
             print(f"[EXTRACT] ✓ Filings extracted for {ticker}")
         else:
@@ -171,7 +180,8 @@ def transform_data(ticker, config=None):
         print(f"[TRANSFORM] Processing news for {ticker}...")
         combine_news_files(
             input_dir=str(config.RAW_NEWS_DIR),
-            output_path=str(config.PROCESSED_NEWS_FILE)
+            output_path=str(config.PROCESSED_NEWS_FILE),
+            config=config,
         )
         status["news"]["success"] = True
         print(f"[TRANSFORM] ✓ News processed for {ticker}")
@@ -189,7 +199,7 @@ def transform_data(ticker, config=None):
                 text = f.read()
             filename = os.path.basename(transcript_file).replace(".txt", ".parquet")
             output_path = config.PROCESSED_TRANSCRIPTS_DIR / filename
-            process_transcript_from_text(text, str(output_path))
+            process_transcript_from_text(text, str(output_path), config=config)
         status["transcripts"]["success"] = True
         print(f"[TRANSFORM] ✓ Transcripts processed for {ticker}")
     except Exception as e:
@@ -213,8 +223,9 @@ def transform_data(ticker, config=None):
     try:
         print(f"[TRANSFORM] Processing filings for {ticker}...")
         process_all_filings(
-            input_dir=str(config.RAW_FILINGS_DIR),
-            output_dir=str(config.PROCESSED_FILINGS_DIR)
+            input_dir=str(config.RAW_FILINGS_DOCS_DIR),
+            output_dir=str(config.PROCESSED_FILINGS_DIR),
+            config=config,
         )
         status["filings"]["success"] = True
         print(f"[TRANSFORM] ✓ Filings processed for {ticker}")

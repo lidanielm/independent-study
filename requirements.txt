@@ -11,7 +11,6 @@ pyarrow>=12.0.0  # For parquet support
 # Financial Data APIs
 yfinance>=0.2.28
 secedgar>=0.3.0
-earningscall>=0.1.0
 requests>=2.31.0
 
 # NLP & ML
@@ -25,4 +24,7 @@ beautifulsoup4>=4.12.0
 
 # AI/LLM
 openai>=1.0.0
+docetl>=0.1.0
 
+# Supabase
+supabase>=2.0.0

@@ -2,8 +2,15 @@ import re
 import pandas as pd
 import os
 import sys
+from pathlib import Path
+from typing import Optional
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
+from etl.config import ETLConfig
+from processing.docetl_pipelines import (
+    DocETLError,
+    extract_transcript_insights,
+)
 from utils.sentiment_model import sentiment
 from utils.nlp import get_embedding
 
@@ -122,8 +129,9 @@ def process_transcript_text(text):
     return rows
 
 
-def process_transcript_file(input_path, output_path=None):
+def process_transcript_file(input_path, output_path=None, config: Optional[ETLConfig] = None):
     """Process a transcript file (txt or parquet) by splitting into segments and computing features."""
+    cfg = config or ETLConfig()
     # Check if it's a text file or parquet
     if str(input_path).endswith('.txt'):
         # Read text file directly
@@ -164,17 +172,81 @@ def process_transcript_file(input_path, output_path=None):
     # Save processed data
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     result_df.to_parquet(output_path, index=False)
+
+    if cfg.DOCETL_ENABLED:
+        stem = Path(input_path).stem
+        parts = stem.split("_")
+        ticker = parts[0] if parts else ""
+        quarter = None
+        year = None
+        if len(parts) > 1 and parts[1].startswith("Q"):
+            try:
+                quarter = int(parts[1].lstrip("Q"))
+            except ValueError:
+                quarter = None
+        if len(parts) > 2:
+            try:
+                year = int(parts[2])
+            except ValueError:
+                year = None
+        try:
+            insights = extract_transcript_insights(
+                text,
+                ticker=ticker,
+                quarter=quarter,
+                year=year,
+                config=cfg,
+            )
+            qa_df = pd.DataFrame(insights.get("qa_pairs", []))
+            guidance_df = pd.DataFrame(insights.get("guidance", []))
+            if not qa_df.empty:
+                qa_path = cfg.PROCESSED_TRANSCRIPTS_QA_DIR / os.path.basename(output_path)
+                qa_path.parent.mkdir(parents=True, exist_ok=True)
+                qa_df.to_parquet(qa_path, index=False)
+            if not guidance_df.empty:
+                guidance_path = cfg.PROCESSED_TRANSCRIPTS_GUIDANCE_DIR / os.path.basename(output_path)
+                guidance_path.parent.mkdir(parents=True, exist_ok=True)
+                guidance_df.to_parquet(guidance_path, index=False)
+        except DocETLError as exc:
+            print(f"[DOCETL][TRANSCRIPT] Failed for {input_path}: {exc}")
     
     return result_df
 
 
-def process_transcript_from_text(text, output_path=None):
+def process_transcript_from_text(text, output_path=None, config: Optional[ETLConfig] = None):
     """Process transcript text directly (not from a file)."""
+    cfg = config or ETLConfig()
     rows = process_transcript_text(text)
     result_df = pd.DataFrame(rows)
     
     if output_path:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         result_df.to_parquet(output_path, index=False)
+
+    if cfg.DOCETL_ENABLED:
+        try:
+            insights = extract_transcript_insights(
+                text,
+                ticker="",
+                quarter=None,
+                year=None,
+                config=cfg,
+            )
+            qa_df = pd.DataFrame(insights.get("qa_pairs", []))
+            guidance_df = pd.DataFrame(insights.get("guidance", []))
+            if output_path:
+                base_name = os.path.basename(output_path)
+            else:
+                base_name = "transcript.parquet"
+            if not qa_df.empty:
+                qa_path = cfg.PROCESSED_TRANSCRIPTS_QA_DIR / base_name
+                qa_path.parent.mkdir(parents=True, exist_ok=True)
+                qa_df.to_parquet(qa_path, index=False)
+            if not guidance_df.empty:
+                guidance_path = cfg.PROCESSED_TRANSCRIPTS_GUIDANCE_DIR / base_name
+                guidance_path.parent.mkdir(parents=True, exist_ok=True)
+                guidance_df.to_parquet(guidance_path, index=False)
+        except DocETLError as exc:
+            print(f"[DOCETL][TRANSCRIPT] Failed for text input: {exc}")
     
     return result_df
