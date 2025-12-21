@@ -4,7 +4,6 @@ Retrieval service for search over financial documents.
 
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-import json
 import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -87,33 +86,6 @@ class RetrievalService:
         else:
             # Use combined store
             store = self._load_combined_index()
-
-        # region agent log
-        try:
-            from datetime import datetime as _dt
-            with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
-                _f.write(json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "run-docs-missing-pre",
-                    "hypothesisId": "H2",
-                    "location": "retrieval_service.py:search:store_selected",
-                    "message": "store selected for search",
-                    "data": {
-                        "doc_type": doc_type,
-                        "ticker": ticker,
-                        "k": k,
-                        "min_score": min_score,
-                        "indices_dir": str(self.indices_dir),
-                        "tried_paths": tried if doc_type else None,
-                        "using_combined": bool(not doc_type or (doc_type and (not tried or (tried and not any(Path(p).exists() for p in tried))))),
-                        "store_ntotal": int(getattr(getattr(store, "index", None), "ntotal", -1)),
-                        "metadata_len": len(getattr(store, "metadata", []) or []),
-                    },
-                    "timestamp": int(_dt.now().timestamp() * 1000),
-                }) + "\n")
-        except Exception:
-            pass
-        # endregion
         
         # Search
         results = store.search(
@@ -123,28 +95,6 @@ class RetrievalService:
             ticker=ticker,
             min_score=min_score
         )
-
-        # region agent log
-        try:
-            from datetime import datetime as _dt
-            with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
-                _f.write(json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "run-docs-missing-pre",
-                    "hypothesisId": "H2",
-                    "location": "retrieval_service.py:search:results",
-                    "message": "search results summary",
-                    "data": {
-                        "doc_type": doc_type,
-                        "ticker": ticker,
-                        "returned": len(results) if isinstance(results, list) else None,
-                        "sample": results[0] if isinstance(results, list) and results else None,
-                    },
-                    "timestamp": int(_dt.now().timestamp() * 1000),
-                }) + "\n")
-        except Exception:
-            pass
-        # endregion
         
         return results
     

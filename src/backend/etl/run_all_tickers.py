@@ -13,6 +13,9 @@ sys.path.insert(0, str(_BACKEND_DIR))
 from etl.config import ETLConfig
 from etl.auto_orchestrator import ensure_news, ensure_transcripts, ensure_filings, _load_ticker_universe
 from retrieval.index_builder import build_combined_index
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def _write_jsonl(path: Path, obj: Dict[str, Any]) -> None:
@@ -43,7 +46,7 @@ def run_all(
         if not ticker:
             continue
 
-        print(f"[RUN_ALL] ({i}/{len(tickers)}) {ticker}")
+        logger.info(f"Processing ticker {i}/{len(tickers)}: {ticker}")
         step = {"ticker": ticker, "news": None, "transcripts": None, "filings": None}
 
         # Fetch+process per ticker
@@ -70,13 +73,13 @@ def run_all(
         if sleep_s:
             time.sleep(sleep_s)
 
-    print("[RUN_ALL] Rebuilding indices (news + filings + transcripts)...")
+    logger.info("Rebuilding indices (news + filings + transcripts)...")
     build_combined_index(
         cfg,
         ticker=None,
         doc_types={"news", "news_insight", "filing", "filing_insight", "transcript", "transcript_qa", "transcript_guidance"},
     )
-    print("[RUN_ALL] Done.")
+    logger.info("ETL run completed successfully")
 
     return results
 
@@ -93,7 +96,7 @@ def main():
     progress_path = Path(args.progress_path) if args.progress_path else None
 
     out = run_all(tickers=tickers, sleep_s=args.sleep, progress_path=progress_path)
-    print(json.dumps(out, indent=2))
+    logger.info(f"Run completed: {json.dumps(out, indent=2)}")
 
 
 if __name__ == "__main__":

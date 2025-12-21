@@ -13,6 +13,10 @@ from abc import ABC, abstractmethod
 # Load environment variables from .env file
 from dotenv import load_dotenv
 
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 # Load .env file - tries current directory and parent directories
 # This will find .env in the project root
 try:
@@ -92,10 +96,10 @@ class BaseAgent(ABC):
                 self.client = OpenAI(api_key=api_key)
             else:
                 self.client = None
-                print(f"Warning: OPENAI_API_KEY not found in environment.")
+                logger.warning("OPENAI_API_KEY not found in environment")
         else:
             self.client = None
-            print(f"Warning: OpenAI package not installed.")
+            logger.warning("OpenAI package not installed")
     
     def _get_tool_definitions(self) -> List[Dict[str, Any]]:
         """Get tool definitions in OpenAI function calling format."""

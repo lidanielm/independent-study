@@ -21,6 +21,9 @@ sys.path.insert(0, str(backend_dir))
 
 from etl.config import ETLConfig
 from utils.supabase_storage import SupabaseStorage
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 def migrate_data():
     """Migrate all processed data and indices to Supabase Storage."""
@@ -28,15 +31,15 @@ def migrate_data():
     
     # Check if Supabase is configured
     if not config.USE_SUPABASE_STORAGE:
-        print("Supabase storage is not enabled. Set USE_SUPABASE_STORAGE=true in .env")
+        logger.warning("Supabase storage is not enabled. Set USE_SUPABASE_STORAGE=true in .env")
         return
     
     try:
         storage = SupabaseStorage()
         storage.ensure_bucket()
-        print(f"Using bucket: {storage.bucket_name}")
+        logger.info(f"Using bucket: {storage.bucket_name}")
     except Exception as e:
-        print(f"Error initializing Supabase storage: {e}")
+        logger.error(f"Error initializing Supabase storage: {e}")
         return
     
     # Migrate processed files
@@ -57,11 +60,11 @@ def migrate_data():
             parquet_files = list(local_dir.glob("*.parquet"))
             for file_path in parquet_files:
                 remote_path = f"processed/{category}/{file_path.name}"
-                print(f"Uploading {file_path} to {remote_path}")
+                logger.info(f"Uploading {file_path} to {remote_path}")
                 if storage.upload_file(file_path, remote_path):
                     total_files += 1
                 else:
-                    print(f"  Failed to upload {file_path}")
+                    logger.error(f"Failed to upload {file_path}")
     
     # Migrate combined processed files
     combined_files = [
@@ -74,11 +77,11 @@ def migrate_data():
     
     for local_path, remote_path in combined_files:
         if local_path.exists():
-            print(f"Uploading {local_path} to {remote_path}")
+            logger.info(f"Uploading {local_path} to {remote_path}")
             if storage.upload_file(local_path, remote_path):
                 total_files += 1
             else:
-                print(f"  Failed to upload {local_path}")
+                logger.error(f"Failed to upload {local_path}")
     
     # Migrate indices
     indices_dir = config.PROCESSED_DIR / "indices"
@@ -86,13 +89,13 @@ def migrate_data():
         for file_path in indices_dir.glob("*"):
             if file_path.is_file():
                 remote_path = f"indices/{file_path.name}"
-                print(f"Uploading {file_path} to {remote_path}")
+                logger.info(f"Uploading {file_path} to {remote_path}")
                 if storage.upload_file(file_path, remote_path):
                     total_files += 1
                 else:
-                    print(f"  Failed to upload {file_path}")
+                    logger.error(f"Failed to upload {file_path}")
     
-    print(f"\nMigration complete! Uploaded {total_files} files to Supabase Storage.")
+    logger.info(f"Migration complete! Uploaded {total_files} files to Supabase Storage.")
 
 if __name__ == "__main__":
     migrate_data()

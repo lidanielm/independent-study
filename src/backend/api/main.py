@@ -570,29 +570,6 @@ def get_research_agent() -> ResearchAgent:
 async def agent_query(request: AgentQueryRequest):
     """Query the research agent with a natural language question."""
     try:
-        # region agent log
-        try:
-            import json as _json
-            from datetime import datetime as _dt
-            with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
-                _f.write(_json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "run-docs-missing-pre",
-                    "hypothesisId": "H4",
-                    "location": "api/main.py:agent_query:entry",
-                    "message": "agent_query request received",
-                    "data": {
-                        "query_preview": (request.query or "")[:200],
-                        "ticker": request.ticker,
-                        "auto_etl": request.auto_etl,
-                        "rebuild_index": request.rebuild_index,
-                        "agent_type": request.agent_type,
-                    },
-                    "timestamp": int(_dt.now().timestamp() * 1000),
-                }) + "\n")
-        except Exception:
-            pass
-        # endregion
         auto_status = None
         if request.auto_etl:
             auto_status = run_autonomous(request.query, ticker_hint=request.ticker)

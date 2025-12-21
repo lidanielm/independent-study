@@ -68,9 +68,8 @@ class FinancialVectorStore:
         
         query_embedding = query_embedding.astype('float32')
         
-        # Search for more results if ticker prioritization is enabled.
-        # NOTE: With very generic queries, the top-N nearest neighbors may contain 0 documents for a given ticker
-        # even if that ticker exists in the corpus. In that case, we do a second pass with a larger candidate pool.
+        # Search for more results if ticker prioritization is enabled
+        # This ensures we have enough results to prioritize properly
         search_k = k * 3 if ticker else k * 2
         distances, indices = self.index.search(query_embedding, min(search_k, self.index.ntotal))
         

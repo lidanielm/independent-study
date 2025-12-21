@@ -37,7 +37,7 @@ def _load_ticker_universe() -> Set[str]:
         if isinstance(tickers, list):
             return {t.upper() for t in tickers if isinstance(t, str) and t.strip()}
     except Exception as exc:
-        print(f"[AUTO_ORCHESTRATOR] Warning: failed to load ticker universe: {exc}")
+        logger.warning(f"Failed to load ticker universe: {exc}")
     return set()
 
 
@@ -74,6 +74,9 @@ from processing.process_news import combine_news_files
 from processing.process_transcripts import process_transcript_from_text
 from processing.process_filings import process_all_filings
 from retrieval.index_builder import build_combined_index
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def _is_stale(path: Path, hours: int) -> bool:
@@ -106,46 +109,32 @@ def ensure_news(ticker: str, cfg: ETLConfig) -> Dict[str, Any]:
         status["processed"] = True
     except Exception as exc:
         status["error"] = str(exc)
-    # region agent log
-    try:
-        with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
-            _f.write(json.dumps({
-                "sessionId": "debug-session",
-                "runId": "run4",
-                "hypothesisId": "H5",
-                "location": "auto_orchestrator.py:ensure_news",
-                "message": "ensure_news status",
-                "data": status,
-                "timestamp": int(datetime.now().timestamp() * 1000),
-            }) + "\n")
-    except Exception:
-        pass
-    # endregion
+        logger.error(f"Error ensuring news for {ticker}: {exc}")
     return status
 
 
 def ensure_transcripts(ticker: str, cfg: ETLConfig) -> Dict[str, Any]:
     status = {"source": "transcripts", "ticker": ticker, "fetched": False, "processed": False, "error": None}
     try:
-        print(f"[ENSURE_TRANSCRIPTS] Checking transcripts for {ticker}...")
+        logger.debug(f"Checking transcripts for {ticker}...")
         processed_dir = cfg.PROCESSED_TRANSCRIPTS_DIR
         # Check staleness for THIS ticker specifically
         latest = _latest_mtime_for_ticker(processed_dir, ticker)
         stale = True
         if latest:
             stale = datetime.now() - latest > timedelta(hours=cfg.AUTO_STALENESS_HOURS)
-            print(f"[ENSURE_TRANSCRIPTS] Latest processed transcript for {ticker}: {latest}, stale: {stale}")
+            logger.debug(f"Latest processed transcript for {ticker}: {latest}, stale: {stale}")
         else:
-            print(f"[ENSURE_TRANSCRIPTS] No processed transcripts found for {ticker}, will fetch")
+            logger.debug(f"No processed transcripts found for {ticker}, will fetch")
         
         # Check if raw files exist for this ticker
         transcript_files = glob.glob(str(cfg.RAW_TRANSCRIPTS_DIR / f"{ticker}_*.txt"))
         if not transcript_files and stale:
-            print(f"[ENSURE_TRANSCRIPTS] No raw files for {ticker}, fetching...")
+            logger.info(f"No raw files for {ticker}, fetching...")
             stale = True  # Force fetch if no files exist
         
         if stale:
-            print(f"[ENSURE_TRANSCRIPTS] Fetching transcripts for {ticker}...")
+            logger.info(f"Fetching transcripts for {ticker}...")
             download_transcripts_to_dataframe(
                 ticker,
                 max_transcripts=cfg.AUTO_MAX_TRANSCRIPTS,
@@ -153,13 +142,13 @@ def ensure_transcripts(ticker: str, cfg: ETLConfig) -> Dict[str, Any]:
                 api_key=cfg.API_NINJAS_API_KEY,
             )
             status["fetched"] = True
-            print(f"[ENSURE_TRANSCRIPTS] Download complete for {ticker}")
+            logger.info(f"Download complete for {ticker}")
             # Refresh file list after download
             transcript_files = glob.glob(str(cfg.RAW_TRANSCRIPTS_DIR / f"{ticker}_*.txt"))
         else:
-            print(f"[ENSURE_TRANSCRIPTS] Transcripts for {ticker} are fresh, skipping fetch")
+            logger.debug(f"Transcripts for {ticker} are fresh, skipping fetch")
         
-        print(f"[ENSURE_TRANSCRIPTS] Found {len(transcript_files)} transcript files for {ticker} to process")
+        logger.info(f"Found {len(transcript_files)} transcript files for {ticker} to process")
         for transcript_file in transcript_files:
             with open(transcript_file, "r", encoding="utf-8") as f:
                 text = f.read()
@@ -167,27 +156,12 @@ def ensure_transcripts(ticker: str, cfg: ETLConfig) -> Dict[str, Any]:
             output_path = cfg.PROCESSED_TRANSCRIPTS_DIR / filename
             process_transcript_from_text(text, str(output_path), config=cfg)
         status["processed"] = True
-        print(f"[ENSURE_TRANSCRIPTS] Processing complete for {ticker}: {len(transcript_files)} files")
+        logger.info(f"Processing complete for {ticker}: {len(transcript_files)} files")
     except Exception as exc:
         status["error"] = str(exc)
-        print(f"[ENSURE_TRANSCRIPTS] Error for {ticker}: {exc}")
+        logger.error(f"Error processing transcripts for {ticker}: {exc}")
         import traceback
         traceback.print_exc()
-    # region agent log
-    try:
-        with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
-            _f.write(json.dumps({
-                "sessionId": "debug-session",
-                "runId": "run4",
-                "hypothesisId": "H5",
-                "location": "auto_orchestrator.py:ensure_transcripts",
-                "message": "ensure_transcripts status",
-                "data": status,
-                "timestamp": int(datetime.now().timestamp() * 1000),
-            }) + "\n")
-    except Exception:
-        pass
-    # endregion
     return status
 
 
@@ -208,32 +182,32 @@ def _latest_mtime_for_ticker(directory: Path, ticker: str) -> Optional[datetime]
 def ensure_filings(ticker: str, cfg: ETLConfig) -> Dict[str, Any]:
     status = {"source": "filings", "ticker": ticker, "fetched": False, "processed": False, "error": None}
     try:
-        print(f"[ENSURE_FILINGS] Checking filings for {ticker}...")
+        logger.debug(f"Checking filings for {ticker}...")
         # Check staleness for THIS ticker specifically
         latest = _latest_mtime_for_ticker(cfg.PROCESSED_FILINGS_DIR, ticker)
         stale = True
         if latest:
             stale = datetime.now() - latest > timedelta(hours=cfg.AUTO_STALENESS_HOURS)
-            print(f"[ENSURE_FILINGS] Latest processed filing for {ticker}: {latest}, stale: {stale}")
+            logger.debug(f"Latest processed filing for {ticker}: {latest}, stale: {stale}")
         else:
-            print(f"[ENSURE_FILINGS] No processed filings found for {ticker}, will fetch")
+            logger.debug(f"No processed filings found for {ticker}, will fetch")
         
         # Check if raw files exist for this ticker
         import glob
         raw_files = glob.glob(str(cfg.RAW_FILINGS_DOCS_DIR / f"{ticker}_*.txt"))
         if not raw_files and stale:
-            print(f"[ENSURE_FILINGS] No raw files for {ticker}, fetching...")
+            logger.info(f"No raw files for {ticker}, fetching...")
             stale = True  # Force fetch if no files exist
         
         if stale:
-            print(f"[ENSURE_FILINGS] Fetching filings for {ticker}...")
+            logger.info(f"Fetching filings for {ticker}...")
             # refresh metadata parquet
             filings_data = fetch_filings(ticker)
             df = filings_to_dataframe(filings_data)
             if not df.empty:
                 save_path = cfg.RAW_FILINGS_DIR / f"{ticker}_filings.parquet"
                 df.to_parquet(save_path, index=False)
-                print(f"[ENSURE_FILINGS] Saved metadata: {len(df)} filings")
+                logger.info(f"Saved metadata: {len(df)} filings")
             # download raw docs
             downloaded = download_recent_filing_documents(
                 ticker,
@@ -241,15 +215,15 @@ def ensure_filings(ticker: str, cfg: ETLConfig) -> Dict[str, Any]:
                 max_filings=cfg.AUTO_MAX_FILINGS,
                 save_dir=cfg.RAW_FILINGS_DOCS_DIR,
             )
-            print(f"[ENSURE_FILINGS] Downloaded {len(downloaded)} filing documents for {ticker}")
+            logger.info(f"Downloaded {len(downloaded)} filing documents for {ticker}")
             status["fetched"] = True
         else:
-            print(f"[ENSURE_FILINGS] Filings for {ticker} are fresh, skipping fetch")
+            logger.debug(f"Filings for {ticker} are fresh, skipping fetch")
         
         # Process only files for this ticker
-        print(f"[ENSURE_FILINGS] Processing filings for {ticker} from {cfg.RAW_FILINGS_DOCS_DIR}...")
+        logger.info(f"Processing filings for {ticker} from {cfg.RAW_FILINGS_DOCS_DIR}...")
         raw_files = glob.glob(str(cfg.RAW_FILINGS_DOCS_DIR / f"{ticker}_*.txt"))
-        print(f"[ENSURE_FILINGS] Found {len(raw_files)} raw filing files for {ticker}")
+        logger.info(f"Found {len(raw_files)} raw filing files for {ticker}")
         
         if raw_files:
             for filepath in raw_files:
@@ -258,30 +232,15 @@ def ensure_filings(ticker: str, cfg: ETLConfig) -> Dict[str, Any]:
                 from processing.process_filings import process_filing_file
                 process_filing_file(filepath, str(output_path), config=cfg)
             status["processed"] = True
-            print(f"[ENSURE_FILINGS] Processing complete for {ticker}: {len(raw_files)} files")
+            logger.info(f"Processing complete for {ticker}: {len(raw_files)} files")
         else:
-            print(f"[ENSURE_FILINGS] Warning: No raw filing files found for {ticker} to process")
+            logger.warning(f"No raw filing files found for {ticker} to process")
             status["error"] = f"No filing files found for {ticker}"
     except Exception as exc:
         status["error"] = str(exc)
-        print(f"[ENSURE_FILINGS] Error for {ticker}: {exc}")
+        logger.error(f"Error processing filings for {ticker}: {exc}")
         import traceback
         traceback.print_exc()
-    # region agent log
-    try:
-        with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
-            _f.write(json.dumps({
-                "sessionId": "debug-session",
-                "runId": "run4",
-                "hypothesisId": "H5",
-                "location": "auto_orchestrator.py:ensure_filings",
-                "message": "ensure_filings status",
-                "data": status,
-                "timestamp": int(datetime.now().timestamp() * 1000),
-            }) + "\n")
-    except Exception:
-        pass
-    # endregion
     return status
 
 
@@ -293,27 +252,8 @@ def run_autonomous(query: str, ticker_hint: Optional[str] = None, doc_types: Opt
     intent: IntentResult = parse_intent(query, ticker_hint)
     universe = _load_ticker_universe()
     
-    print(f"[AUTO_ORCHESTRATOR] Query: '{query}', ticker_hint: {ticker_hint}")
-    print(f"[AUTO_ORCHESTRATOR] Inferred ticker: {intent.ticker}, needs: news={intent.needs_news}, filings={intent.needs_filings}, transcripts={intent.needs_transcripts}")
-    # region agent log
-    try:
-        with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
-            _f.write(json.dumps({
-                "sessionId": "debug-session",
-                "runId": "run1",
-                "hypothesisId": "H1",
-                "location": "auto_orchestrator.py:195",
-                "message": "intent parsed",
-                "data": {
-                    "query": query,
-                    "ticker_hint": ticker_hint,
-                    "intent": intent.__dict__,
-                },
-                "timestamp": int(datetime.now().timestamp() * 1000),
-            }) + "\n")
-    except Exception:
-        pass
-    # endregion
+    logger.info(f"Query: '{query}', ticker_hint: {ticker_hint}")
+    logger.info(f"Inferred ticker: {intent.ticker}, needs: news={intent.needs_news}, filings={intent.needs_filings}, transcripts={intent.needs_transcripts}")
 
     # Apply stoplist and universe filtering to candidates
     raw_candidates: List[str] = []
@@ -357,33 +297,10 @@ def run_autonomous(query: str, ticker_hint: Optional[str] = None, doc_types: Opt
                 filtered = suggested
                 chosen_ticker = suggested[0]
         except Exception as exc:
-            print(f"[AUTO_ORCHESTRATOR] Warning: suggest_tickers fallback failed: {exc}")
-
-    # region agent log
-    try:
-        with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
-            _f.write(json.dumps({
-                "sessionId": "debug-session",
-                "runId": "run1",
-                "hypothesisId": "H1",
-                "location": "auto_orchestrator.py:filter",
-                "message": "ticker filtered",
-                "data": {
-                    "raw_candidates": dedup,
-                    "filtered": filtered,
-                    "chosen": chosen_ticker,
-                    "stoplist_hit": [t for t in dedup if t in TICKER_STOPLIST],
-                    "universe_size": len(universe),
-                    "fallback_used": not bool(filtered and dedup),
-                },
-                "timestamp": int(datetime.now().timestamp() * 1000),
-            }) + "\n")
-    except Exception:
-        pass
-    # endregion
+            logger.warning(f"suggest_tickers fallback failed: {exc}")
     
     if not chosen_ticker:
-        print(f"[AUTO_ORCHESTRATOR] Error: Unable to infer ticker from query after filtering (and no corpus suggestions)")
+        logger.error("Unable to infer ticker from query after filtering (and no corpus suggestions)")
         return {
             "error": "Unable to infer ticker from query",
             "intent": intent.__dict__,
@@ -417,34 +334,34 @@ def run_autonomous(query: str, ticker_hint: Optional[str] = None, doc_types: Opt
     index_doc_types: Set[str] = set()
 
     if cfg.AUTO_ENABLED:
-        print(f"[AUTO_ORCHESTRATOR] AUTO_ENABLED=True, fetching sources: {needed}")
+        logger.info(f"AUTO_ENABLED=True, fetching sources: {needed}")
         for t in tickers_to_process:
             if "news" in needed:
-                print(f"[AUTO_ORCHESTRATOR] Ensuring news for {t}...")
+                logger.info(f"Ensuring news for {t}...")
                 results["actions"].append(ensure_news(t, cfg))
                 index_doc_types.update({"news", "news_insight"})
             if "transcripts" in needed:
-                print(f"[AUTO_ORCHESTRATOR] Ensuring transcripts for {t}...")
+                logger.info(f"Ensuring transcripts for {t}...")
                 results["actions"].append(ensure_transcripts(t, cfg))
                 index_doc_types.update({"transcript", "transcript_qa", "transcript_guidance"})
             if "filings" in needed:
-                print(f"[AUTO_ORCHESTRATOR] Ensuring filings for {t}...")
+                logger.info(f"Ensuring filings for {t}...")
                 results["actions"].append(ensure_filings(t, cfg))
                 index_doc_types.update({"filing", "filing_insight"})
     else:
-        print(f"[AUTO_ORCHESTRATOR] AUTO_ENABLED=False, skipping fetch")
+        logger.info("AUTO_ENABLED=False, skipping fetch")
 
     # Rebuild indices (include all documents, not just this ticker)
     # Search will filter by ticker as needed
-    print(f"[AUTO_ORCHESTRATOR] Rebuilding indices with doc_types: {index_doc_types or 'all'}")
+    logger.info(f"Rebuilding indices with doc_types: {index_doc_types or 'all'}")
     try:
         build_combined_index(cfg, ticker=None, doc_types=index_doc_types or None)
         results["index_rebuilt"] = True
-        print(f"[AUTO_ORCHESTRATOR] Index rebuild successful")
+        logger.info("Index rebuild successful")
     except Exception as exc:
         results["index_rebuilt"] = False
         results["index_error"] = str(exc)
-        print(f"[AUTO_ORCHESTRATOR] Index rebuild failed: {exc}")
+        logger.error(f"Index rebuild failed: {exc}")
         import traceback
         traceback.print_exc()
 
