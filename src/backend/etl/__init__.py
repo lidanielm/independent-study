@@ -4,11 +4,6 @@ ETL workflow orchestrator package.
 
 from .config import ETLConfig
 
-# NOTE: Avoid importing orchestrator at module import time.
-# Some environments (e.g., sandboxed runners) may not allow reading `.env` files
-# or may not have optional ingestion dependencies configured. We keep these
-# as lazy wrappers so importing `ETLConfig` is always safe.
-
 def run_etl_pipeline(*args, **kwargs):
     from .orchestrator import run_etl_pipeline as _impl
     return _impl(*args, **kwargs)

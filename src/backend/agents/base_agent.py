@@ -151,8 +151,40 @@ class BaseAgent(ABC):
         for tool in self.tools:
             if tool.__name__ == tool_name:
                 try:
+                    # region agent log
+                    try:
+                        from datetime import datetime as _dt
+                        with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
+                            _f.write(json.dumps({
+                                "sessionId": "debug-session",
+                                "runId": "run-docs-missing-pre",
+                                "hypothesisId": "H4",
+                                "location": "base_agent.py:_execute_tool:entry",
+                                "message": "executing tool",
+                                "data": {"tool": tool_name, "arguments": arguments},
+                                "timestamp": int(_dt.now().timestamp() * 1000),
+                            }) + "\n")
+                    except Exception:
+                        pass
+                    # endregion
                     return tool(**arguments)
                 except Exception as e:
+                    # region agent log
+                    try:
+                        from datetime import datetime as _dt
+                        with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
+                            _f.write(json.dumps({
+                                "sessionId": "debug-session",
+                                "runId": "run-docs-missing-pre",
+                                "hypothesisId": "H4",
+                                "location": "base_agent.py:_execute_tool:exception",
+                                "message": "tool raised exception",
+                                "data": {"tool": tool_name, "error": str(e)},
+                                "timestamp": int(_dt.now().timestamp() * 1000),
+                            }) + "\n")
+                    except Exception:
+                        pass
+                    # endregion
                     return {"error": f"Tool execution failed: {str(e)}"}
         
         return {"error": f"Tool {tool_name} not found"}
@@ -359,8 +391,13 @@ class BaseAgent(ABC):
                 result = tool_result.get("result", [])
                 if isinstance(result, list):
                     for item in result[:5]:  # Limit to top 5 sources
+                        doc_type = item.get("doc_type", "unknown")
+                        # Best-effort: surface identifiers so the frontend can open the full source via /api/document
                         source = {
-                            "type": item.get("doc_type", "unknown"),
+                            # Backwards compat for existing frontend code:
+                            "type": doc_type,
+                            # Preferred field name:
+                            "doc_type": doc_type,
                             "ticker": item.get("ticker"),
                             "title": item.get("title") or item.get("section"),
                             "score": item.get("similarity_score"),
@@ -391,6 +428,21 @@ class BaseAgent(ABC):
             action_input = input_match.group(1).strip()
         
         return thought, action, action_input
+
+    def _extract_final_answer_text(self, assistant_content: str) -> str:
+        """
+        For ReAct text-mode agents, the model emits Thought/Action scaffolding.
+        The chatbot should display only a single final answer.
+
+        We therefore extract everything after the first `Final Answer:` marker.
+        If the marker is missing, fall back to the raw content.
+        """
+        if not assistant_content:
+            return ""
+        m = re.search(r"^Final Answer:\s*", assistant_content, re.MULTILINE)
+        if not m:
+            return assistant_content.strip()
+        return assistant_content[m.end():].strip()
     
     async def _process_query_react_text(
         self,
@@ -442,7 +494,7 @@ class BaseAgent(ABC):
                 # Guardrail: models sometimes emit "Action: None" but forget to write a final answer.
                 # Only stop if a "Final Answer:" section is present; otherwise nudge and continue.
                 if re.search(r"^Final Answer:\s*", assistant_content, re.MULTILINE):
-                    answer = assistant_content
+                    answer = self._extract_final_answer_text(assistant_content)
                     self.memory.append({"role": "user", "content": query})
                     self.memory.append({"role": "assistant", "content": answer})
                     trace.append(step)
@@ -533,9 +585,12 @@ class BaseAgent(ABC):
         if "error" in final_response:
             # Fall back to last assistant message (avoid returning a system prompt)
             last_assistant = next((m for m in reversed(messages) if m.get("role") == "assistant"), {"content": ""})
-            final_content = last_assistant.get("content") or "Max iterations reached; unable to produce final answer."
+            last_content = last_assistant.get("content") or "Max iterations reached; unable to produce final answer."
+            final_content = self._extract_final_answer_text(last_content)
         else:
-            final_content = final_response["choices"][0]["message"].get("content", "") or ""
+            final_content = self._extract_final_answer_text(
+                final_response["choices"][0]["message"].get("content", "") or ""
+            )
 
         response_payload = {
             "answer": final_content,

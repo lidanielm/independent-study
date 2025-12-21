@@ -13,8 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from .base_agent import BaseAgent
 from .tools.search_tools import search_documents, search_news, search_filings, search_transcripts
-from .tools.search_tools import suggest_tickers
-from .tools.data_tools import get_price_data, get_fundamentals, screen_rising_operational_risk
+from .tools.data_tools import get_price_data, get_fundamentals
 from .query_intent import parse_intent
 from etl.config import ETLConfig
 
@@ -58,8 +57,7 @@ Action Input: <JSON object with arguments; use {} when no tool>
 Observation: <leave blank; system will fill after tool run>
 
 When answering questions:
-1. If context includes a single 'ticker', use it in all relevant tool calls.
-   If context includes a list 'tickers', you must choose the appropriate ticker for each tool call (e.g., search_filings(..., ticker="NVDA") then search_filings(..., ticker="AMD")).
+1. ALWAYS use the ticker symbol from the context when calling search tools (search_filings, search_transcripts, search_news)
 2. Use the search tools to find relevant information from multiple sources
 3. Synthesize findings from different documents to provide comprehensive answers
 4. Always cite your sources (mention document type, ticker, and key details)
@@ -69,16 +67,6 @@ When answering questions:
 
 IMPORTANT: If a ticker is provided in the context, you MUST pass it as the 'ticker' parameter to all search tool calls. 
 For example, if context shows ticker='TSLA', call search_filings(query="...", ticker="TSLA").
-
-If no ticker is provided, use `suggest_tickers(query=..., doc_type=...)` to identify which tickers are most relevant,
-then search those tickers' documents to produce the answer.
-
-For competitive-position questions about AI chips, specifically look for 10-K evidence such as:
-- Software ecosystem / lock-in: CUDA, developer ecosystem, software stack, platform compatibility, proprietary APIs, switching costs.
-- Supply chain dominance: capacity constraints, foundry dependencies, advanced packaging, HBM/memory supply, single-source risk, long-term supply agreements.
-
-For broad screening queries that ask for "firms with ..." (no tickers provided), you should consider using:
-- `screen_rising_operational_risk(...)` to generate candidate tickers from filings before doing deeper searches.
 
 Be thorough but concise. Structure your responses clearly with:
 - A direct answer to the question
@@ -91,10 +79,8 @@ Be thorough but concise. Structure your responses clearly with:
             search_news,
             search_filings,
             search_transcripts,
-            suggest_tickers,
             get_price_data,
-            get_fundamentals,
-            screen_rising_operational_risk,
+            get_fundamentals
         ]
         
         super().__init__(
@@ -164,9 +150,7 @@ Be thorough but concise. Structure your responses clearly with:
         max_iterations: int = 5
     ) -> dict:
         """
-        Override to infer tickers and sources.
-        - Single ticker: run one ReAct flow.
-        - Multiple tickers: run a single ReAct flow with `tickers=[...]` so the agent produces ONE Thought + ONE Final Answer.
+        Override to infer tickers and sources, then run per-ticker ReAct flows and aggregate.
         """
         base_context = context.copy() if context else {}
         provided_ticker = base_context.get("ticker")
@@ -244,88 +228,65 @@ Be thorough but concise. Structure your responses clearly with:
         if intent.needs_transcripts:
             doc_types.append("transcripts")
         
-        # If no ticker inferred, pick candidate tickers based on corpus search for the query.
-        # This keeps "firms with ..." queries from collapsing to an empty run.
+        # If no ticker inferred, fallback to single run with sources
         if not tickers:
-            try:
-                suggestion = suggest_tickers(query=query, doc_type=None, k=self.max_tickers, candidate_k=80, min_score=0.0)
-                suggested = [t["ticker"] for t in (suggestion.get("tickers") or []) if t.get("ticker")]
-            except Exception:
-                suggested = []
-                suggestion = None
-
-            # If we found candidates, run one multi-ticker loop; otherwise fall back to single run.
-            if suggested:
-                ctx = base_context.copy()
-                ctx.pop("ticker", None)
-                ctx["tickers"] = suggested
-                if doc_types:
-                    ctx["doc_types"] = doc_types
-                if suggestion:
-                    ctx["ticker_suggestions"] = suggestion
-                return await super().process_query(query=query, context=ctx, max_iterations=max_iterations)
-
             if doc_types:
                 base_context["doc_types"] = doc_types
-            return await super().process_query(query=query, context=base_context if base_context else None, max_iterations=max_iterations)
-
-        # If multiple tickers, run ONE flow with tickers list so we only produce one Thought + one Final Answer.
-        if len(tickers) > 1:
+            return await super().process_query(
+                query=query,
+                context=base_context if base_context else None,
+                max_iterations=max_iterations
+            )
+        
+        # Run per-ticker and aggregate
+        answers = []
+        all_sources = []
+        all_tool_calls = []
+        for t in tickers:
             ctx = base_context.copy()
-            ctx.pop("ticker", None)  # avoid forcing single-ticker behavior
-            ctx["tickers"] = tickers
+            ctx["ticker"] = t
             if doc_types:
                 ctx["doc_types"] = doc_types
 
-            # Opportunistic filings prefetch/index per ticker (best-effort)
+            # Opportunistic: if user needs filings and they're missing locally, try to fetch/process/index them.
+            # This keeps the agent from returning empty/partial results for common comparative questions.
             try:
                 cfg = ETLConfig()
                 auto_enabled = getattr(cfg, "AUTO_ENABLED", False)
                 disable_auto = bool(ctx.get("disable_auto_fetch"))
                 if auto_enabled and not disable_auto and ("filings" in (doc_types or [])):
+                    # Fast check: do we have any processed filings parquet for this ticker?
                     import glob
-                    from etl.auto_orchestrator import ensure_filings
-                    from retrieval.retrieval_service import get_retrieval_service
-                    ctx["auto_fetch_status"] = ctx.get("auto_fetch_status", {})
-                    for t in tickers:
-                        has_processed = bool(glob.glob(str(cfg.PROCESSED_FILINGS_DIR / f"{t}_*.parquet")))
-                        if not has_processed:
-                            status = ensure_filings(t, cfg)
-                            ctx["auto_fetch_status"].setdefault("filings", {})[t] = status
-                            if status.get("processed"):
-                                get_retrieval_service().rebuild_indices(ticker=t, doc_types={"filing"})
+                    has_processed = bool(glob.glob(str(cfg.PROCESSED_FILINGS_DIR / f"{t}_*.parquet")))
+                    if not has_processed:
+                        from etl.auto_orchestrator import ensure_filings
+                        status = ensure_filings(t, cfg)
+                        # Rebuild indices for this ticker so subsequent searches see the new docs
+                        if status.get("processed"):
+                            from retrieval.retrieval_service import get_retrieval_service
+                            get_retrieval_service().rebuild_indices(ticker=t, doc_types={"filing"})
+                        # Surface ETL status to the LLM via context so it can explain limitations
+                        ctx["auto_fetch_status"] = ctx.get("auto_fetch_status", {})
+                        ctx["auto_fetch_status"]["filings"] = status
             except Exception as _exc:
                 ctx["auto_fetch_status"] = ctx.get("auto_fetch_status", {})
-                ctx["auto_fetch_status"]["filings_error"] = str(_exc)
+                ctx["auto_fetch_status"]["filings"] = {"ticker": t, "error": str(_exc)}
 
-            return await super().process_query(query=query, context=ctx, max_iterations=max_iterations)
-
-        # Single ticker: run as before
-        t = tickers[0]
-        ctx = base_context.copy()
-        ctx["ticker"] = t
-        if doc_types:
-            ctx["doc_types"] = doc_types
-
-        # Opportunistic: if user needs filings and they're missing locally, try to fetch/process/index them.
-        try:
-            cfg = ETLConfig()
-            auto_enabled = getattr(cfg, "AUTO_ENABLED", False)
-            disable_auto = bool(ctx.get("disable_auto_fetch"))
-            if auto_enabled and not disable_auto and ("filings" in (doc_types or [])):
-                import glob
-                has_processed = bool(glob.glob(str(cfg.PROCESSED_FILINGS_DIR / f"{t}_*.parquet")))
-                if not has_processed:
-                    from etl.auto_orchestrator import ensure_filings
-                    status = ensure_filings(t, cfg)
-                    if status.get("processed"):
-                        from retrieval.retrieval_service import get_retrieval_service
-                        get_retrieval_service().rebuild_indices(ticker=t, doc_types={"filing"})
-                    ctx["auto_fetch_status"] = ctx.get("auto_fetch_status", {})
-                    ctx["auto_fetch_status"]["filings"] = status
-        except Exception as _exc:
-            ctx["auto_fetch_status"] = ctx.get("auto_fetch_status", {})
-            ctx["auto_fetch_status"]["filings"] = {"ticker": t, "error": str(_exc)}
-
-        return await super().process_query(query=query, context=ctx, max_iterations=max_iterations)
+            result = await super().process_query(
+                query=query,
+                context=ctx,
+                max_iterations=max_iterations
+            )
+            answers.append((t, result.get("answer", "")))
+            all_sources.extend(result.get("sources", []) or [])
+            all_tool_calls.extend(result.get("tool_calls", []) or [])
+        
+        # Combine answers into a single response
+        combined_answer = "\n\n".join([f"{t}: {ans}" for t, ans in answers])
+        return {
+            "answer": combined_answer,
+            "sources": all_sources,
+            "tool_calls": all_tool_calls,
+            "agent": self.name
+        }
 

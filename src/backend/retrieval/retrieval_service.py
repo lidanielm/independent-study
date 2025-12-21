@@ -4,6 +4,7 @@ Retrieval service for search over financial documents.
 
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+import json
 import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -86,6 +87,33 @@ class RetrievalService:
         else:
             # Use combined store
             store = self._load_combined_index()
+
+        # region agent log
+        try:
+            from datetime import datetime as _dt
+            with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
+                _f.write(json.dumps({
+                    "sessionId": "debug-session",
+                    "runId": "run-docs-missing-pre",
+                    "hypothesisId": "H2",
+                    "location": "retrieval_service.py:search:store_selected",
+                    "message": "store selected for search",
+                    "data": {
+                        "doc_type": doc_type,
+                        "ticker": ticker,
+                        "k": k,
+                        "min_score": min_score,
+                        "indices_dir": str(self.indices_dir),
+                        "tried_paths": tried if doc_type else None,
+                        "using_combined": bool(not doc_type or (doc_type and (not tried or (tried and not any(Path(p).exists() for p in tried))))),
+                        "store_ntotal": int(getattr(getattr(store, "index", None), "ntotal", -1)),
+                        "metadata_len": len(getattr(store, "metadata", []) or []),
+                    },
+                    "timestamp": int(_dt.now().timestamp() * 1000),
+                }) + "\n")
+        except Exception:
+            pass
+        # endregion
         
         # Search
         results = store.search(
@@ -95,6 +123,28 @@ class RetrievalService:
             ticker=ticker,
             min_score=min_score
         )
+
+        # region agent log
+        try:
+            from datetime import datetime as _dt
+            with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
+                _f.write(json.dumps({
+                    "sessionId": "debug-session",
+                    "runId": "run-docs-missing-pre",
+                    "hypothesisId": "H2",
+                    "location": "retrieval_service.py:search:results",
+                    "message": "search results summary",
+                    "data": {
+                        "doc_type": doc_type,
+                        "ticker": ticker,
+                        "returned": len(results) if isinstance(results, list) else None,
+                        "sample": results[0] if isinstance(results, list) and results else None,
+                    },
+                    "timestamp": int(_dt.now().timestamp() * 1000),
+                }) + "\n")
+        except Exception:
+            pass
+        # endregion
         
         return results
     
@@ -140,36 +190,9 @@ class RetrievalService:
         return self.search(query, doc_type='transcript', ticker=ticker, k=k)
     
     def rebuild_indices(self, ticker: Optional[str] = None, doc_types: Optional[set] = None):
-        """
-        Rebuild vector indices.
-
-        IMPORTANT: If `doc_types` is provided, we rebuild those *specific* indices AND then rebuild the
-        combined index with ALL available doc types so search remains consistent (e.g., rebuilding only
-        filings should not wipe news from `combined.index`).
-        """
-        from retrieval import index_builder
-        indices_dir = self.indices_dir
-
-        if doc_types:
-            # Rebuild requested per-type indices first
-            if "news" in doc_types and self.config.PROCESSED_NEWS_FILE.exists():
-                index_builder.build_news_index(self.config.PROCESSED_NEWS_FILE, indices_dir / "news.index", ticker)
-            if "news_insight" in doc_types and self.config.PROCESSED_NEWS_INSIGHTS_FILE.exists():
-                index_builder.build_news_insights_index(self.config.PROCESSED_NEWS_INSIGHTS_FILE, indices_dir / "news_insights.index", ticker)
-            if "filing" in doc_types and self.config.PROCESSED_FILINGS_DIR.exists():
-                index_builder.build_filings_index(self.config.PROCESSED_FILINGS_DIR, indices_dir / "filings.index", ticker)
-            if "filing_insight" in doc_types and self.config.PROCESSED_FILINGS_INSIGHTS_DIR.exists():
-                index_builder.build_filings_insights_index(self.config.PROCESSED_FILINGS_INSIGHTS_DIR, indices_dir / "filings_insights.index", ticker)
-            if "transcript" in doc_types and self.config.PROCESSED_TRANSCRIPTS_DIR.exists():
-                index_builder.build_transcripts_index(self.config.PROCESSED_TRANSCRIPTS_DIR, indices_dir / "transcripts.index", ticker)
-            if "transcript_qa" in doc_types and self.config.PROCESSED_TRANSCRIPTS_QA_DIR.exists():
-                index_builder.build_transcript_qa_index(self.config.PROCESSED_TRANSCRIPTS_QA_DIR, indices_dir / "transcripts_qa.index", ticker)
-            if "transcript_guidance" in doc_types and self.config.PROCESSED_TRANSCRIPTS_GUIDANCE_DIR.exists():
-                index_builder.build_transcript_guidance_index(self.config.PROCESSED_TRANSCRIPTS_GUIDANCE_DIR, indices_dir / "transcripts_guidance.index", ticker)
-
-        # Always rebuild combined index with ALL doc types so it stays complete.
-        self._combined_store = index_builder.build_combined_index(self.config, ticker, doc_types=None)
-
+        """Rebuild vector indices (optionally limited to doc types)."""
+        from retrieval.index_builder import build_combined_index
+        self._combined_store = build_combined_index(self.config, ticker, doc_types)
         # Clear all cached stores to force reload
         self._news_store = None
         self._filings_store = None

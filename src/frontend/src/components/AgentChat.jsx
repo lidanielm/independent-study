@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { queryAgent } from '../services/api';
+import { queryAgent, getDocument } from '../services/api';
+import DocumentModal from './DocumentModal';
 
 const AgentChat = () => {
   const [messages, setMessages] = useState([
@@ -14,6 +15,9 @@ const AgentChat = () => {
   const [ticker, setTicker] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loadingDocument, setLoadingDocument] = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -91,6 +95,50 @@ const AgentChat = () => {
     return types[type] || type;
   };
 
+  const handleSourceClick = async (source) => {
+    const docType = source?.doc_type || source?.type;
+
+    // If we can't fetch the document, fall back to opening a link if present.
+    if (!docType) {
+      if (source?.link) window.open(source.link, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // Only attempt /api/document if we have the metadata it expects.
+    const hasEnoughMetadata =
+      docType === 'news' ||
+      (docType === 'filing' && Boolean(source?.filing_file)) ||
+      (docType === 'transcript' && Boolean(source?.transcript_file));
+
+    if (!hasEnoughMetadata) {
+      if (source?.link) window.open(source.link, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    setLoadingDocument(true);
+    setError(null);
+    try {
+      const fullDocument = await getDocument({
+        doc_type: docType,
+        ticker: source?.ticker,
+        index: source?.index,
+        filing_file: source?.filing_file,
+        transcript_file: source?.transcript_file,
+      });
+      setSelectedDocument(fullDocument);
+      setIsModalOpen(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingDocument(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedDocument(null);
+  };
+
   const clearChat = () => {
     setMessages([
       {
@@ -111,7 +159,7 @@ const AgentChat = () => {
             <h2 className="text-xl font-bold">Research Agent</h2>
             <p className="text-sm text-blue-100">Ask questions about financial data</p>
           </div>
-          <div className="flex items-center gap-3">
+          {/* <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <label htmlFor="ticker-filter" className="text-sm font-medium">
                 Ticker:
@@ -132,7 +180,7 @@ const AgentChat = () => {
             >
               Clear
             </button>
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -196,11 +244,12 @@ const AgentChat = () => {
                     {message.sources.map((source, idx) => (
                       <div
                         key={idx}
-                        className="text-xs bg-white rounded p-2 border border-gray-200"
+                        className="text-xs bg-white rounded p-2 border border-gray-200 hover:border-gray-300 hover:shadow-sm transition cursor-pointer"
+                        onClick={() => handleSourceClick(source)}
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-medium">
-                            {formatSourceType(source.type)}
+                            {formatSourceType(source.doc_type || source.type)}
                           </span>
                           {source.ticker && (
                             <span className="px-1.5 py-0.5 bg-gray-200 rounded text-gray-700">
@@ -223,6 +272,11 @@ const AgentChat = () => {
                             {source.text_preview}...
                           </div>
                         )}
+                        {!source.text_preview && source.link && (
+                          <div className="text-gray-600">
+                            Click to open the original link
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -238,6 +292,17 @@ const AgentChat = () => {
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                 <span className="text-gray-600">Researching...</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {loadingDocument && (
+          <div className="flex justify-start">
+            <div className="bg-gray-100 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="text-gray-600">Loading source…</span>
               </div>
             </div>
           </div>
@@ -277,6 +342,12 @@ const AgentChat = () => {
           Tip: You can specify a ticker in the filter above, or mention it in your question
         </div>
       </div>
+
+      <DocumentModal
+        document={selectedDocument}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+      />
     </div>
   );
 };

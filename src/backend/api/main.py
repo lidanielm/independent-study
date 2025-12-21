@@ -320,7 +320,9 @@ async def search(
     doc_type: Optional[str] = None,
     ticker: Optional[str] = None,
     k: int = 10,
-    min_score: float = 0.0
+    min_score: float = 0.0,
+    auto_etl: bool = False,
+    rebuild_index: bool = True,
 ):
     """Search over financial documents with automatic ETL pipeline.
     
@@ -328,18 +330,14 @@ async def search(
     but other relevant results are still included if there aren't enough ticker matches.
     """
     try:
-        # Run automatic ETL pipeline to ensure data is up-to-date
-        auto_status = run_autonomous(query, ticker_hint=ticker)
-        
-        # Refresh retrieval indices so new data is visible
-        try:
+        auto_status = None
+        if auto_etl:
+            # Potentially expensive: fetch/process data and rebuild indices (depending on orchestrator settings)
+            auto_status = run_autonomous(query, ticker_hint=ticker)
+        if rebuild_index:
+            # Explicit rebuild (expensive). Prefer calling /api/search/rebuild-indices out of band.
             service = get_retrieval_service()
-            # Don't filter by ticker when rebuilding - include all documents in index
-            # Search will filter by ticker as needed
             service.rebuild_indices(ticker=None)
-        except Exception as refresh_exc:
-            # Log but don't fail the request if refresh fails
-            print(f"Warning: Index refresh failed: {refresh_exc}")
         
         # Perform search
         service = get_retrieval_service()
@@ -457,6 +455,25 @@ async def get_document(request: DocumentRequest):
                 return {k: v for k, v in data.items() if k != 'embedding'}
             return data
         
+        def select_row(df: pd.DataFrame) -> dict:
+            """Select a row by index label if possible; otherwise fall back to positional iloc."""
+            if df is None or df.empty:
+                raise HTTPException(status_code=404, detail="No data found")
+            if request.index is not None:
+                # Prefer label-based match if the stored index came from iterrows() (often a label index)
+                try:
+                    if request.index in df.index:
+                        row = df.loc[request.index]
+                        if isinstance(row, pd.DataFrame):
+                            row = row.iloc[0]
+                        return row.to_dict()
+                except Exception:
+                    pass
+                # Fall back to positional index
+                if 0 <= request.index < len(df):
+                    return df.iloc[request.index].to_dict()
+            return df.iloc[0].to_dict()
+
         if doc_type == 'news':
             # Load news parquet file
             if config.PROCESSED_NEWS_FILE.exists():
@@ -472,12 +489,7 @@ async def get_document(request: DocumentRequest):
             if df.empty:
                 raise HTTPException(status_code=404, detail="No news data found")
             
-            # Get document by index if provided, otherwise return first match
-            if request.index is not None and request.index < len(df):
-                doc = df.iloc[request.index].to_dict()
-            else:
-                # Try to match by title if available
-                doc = df.iloc[0].to_dict()
+            doc = select_row(df)
             
             return {
                 "doc_type": "news",
@@ -497,11 +509,7 @@ async def get_document(request: DocumentRequest):
             if df.empty:
                 raise HTTPException(status_code=404, detail="Filing file is empty")
             
-            # Get document by index if provided
-            if request.index is not None and request.index < len(df):
-                doc = df.iloc[request.index].to_dict()
-            else:
-                doc = df.iloc[0].to_dict()
+            doc = select_row(df)
             
             return {
                 "doc_type": "filing",
@@ -521,11 +529,7 @@ async def get_document(request: DocumentRequest):
             if df.empty:
                 raise HTTPException(status_code=404, detail="Transcript file is empty")
             
-            # Get document by index if provided
-            if request.index is not None and request.index < len(df):
-                doc = df.iloc[request.index].to_dict()
-            else:
-                doc = df.iloc[0].to_dict()
+            doc = select_row(df)
             
             return {
                 "doc_type": "transcript",
@@ -547,6 +551,8 @@ class AgentQueryRequest(BaseModel):
     query: str
     ticker: Optional[str] = None
     agent_type: str = "research"
+    auto_etl: bool = False
+    rebuild_index: bool = False
 
 
 # Global agent instance
@@ -564,24 +570,40 @@ def get_research_agent() -> ResearchAgent:
 async def agent_query(request: AgentQueryRequest):
     """Query the research agent with a natural language question."""
     try:
-        auto_status = run_autonomous(request.query, ticker_hint=request.ticker)
-        # Refresh retrieval indices so new data is visible to the agent
+        # region agent log
         try:
+            import json as _json
+            from datetime import datetime as _dt
+            with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
+                _f.write(_json.dumps({
+                    "sessionId": "debug-session",
+                    "runId": "run-docs-missing-pre",
+                    "hypothesisId": "H4",
+                    "location": "api/main.py:agent_query:entry",
+                    "message": "agent_query request received",
+                    "data": {
+                        "query_preview": (request.query or "")[:200],
+                        "ticker": request.ticker,
+                        "auto_etl": request.auto_etl,
+                        "rebuild_index": request.rebuild_index,
+                        "agent_type": request.agent_type,
+                    },
+                    "timestamp": int(_dt.now().timestamp() * 1000),
+                }) + "\n")
+        except Exception:
+            pass
+        # endregion
+        auto_status = None
+        if request.auto_etl:
+            auto_status = run_autonomous(request.query, ticker_hint=request.ticker)
+        if request.rebuild_index:
             service = get_retrieval_service()
-            # Don't filter by ticker when rebuilding - include all documents in index
-            # Search will filter by ticker as needed
             service.rebuild_indices(ticker=None)
-        except Exception as refresh_exc:
-            # Do not fail the request if refresh fails; include status
-            auto_status = {"error": f"index refresh failed: {refresh_exc}", "intent": auto_status}
         agent = get_research_agent()
         
         context = {}
         # Use inferred ticker from auto_status if available, otherwise use provided ticker
-        inferred_ticker = None
-        if isinstance(auto_status, dict):
-            inferred_ticker = auto_status.get("ticker")
-        
+        inferred_ticker = auto_status.get("ticker") if isinstance(auto_status, dict) else None
         ticker_to_use = inferred_ticker or request.ticker
         if ticker_to_use:
             context["ticker"] = ticker_to_use.upper()

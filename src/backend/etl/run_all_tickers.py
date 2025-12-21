@@ -1,15 +1,3 @@
-"""
-Batch ETL runner for all tickers in src/backend/data/stock_tickers.json.
-
-Goal: fetch + process + index filings, transcripts, and news for the entire universe.
-
-Notes:
-- News is stored in a combined parquet (`data/processed/news.parquet`), so we fetch per-ticker
-  but only need to combine once at the end.
-- Filings/transcripts are processed per-ticker via the ensure_* helpers.
-- We rebuild indices once at the end to avoid expensive repeated embedding/index builds.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -18,7 +6,6 @@ import time
 from pathlib import Path
 from typing import List, Dict, Any
 
-# Ensure `src/backend` is on sys.path when running as a script
 import sys
 _BACKEND_DIR = Path(__file__).resolve().parents[1]  # .../src/backend
 sys.path.insert(0, str(_BACKEND_DIR))

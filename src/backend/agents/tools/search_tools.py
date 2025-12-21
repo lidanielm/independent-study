@@ -104,6 +104,29 @@ def search_documents(
         k=k,
         min_score=min_score
     )
+    # region agent log
+    try:
+        with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
+            _f.write(json.dumps({
+                "sessionId": "debug-session",
+                "runId": "run-docs-missing-pre",
+                "hypothesisId": "H2",
+                "location": "search_tools.py:search_documents:exit",
+                "message": "search_documents result",
+                "data": {
+                    "query_preview": (query or "")[:200],
+                    "doc_type": doc_type,
+                    "ticker": ticker,
+                    "k": k,
+                    "min_score": min_score,
+                    "result_count": len(results) if isinstance(results, list) else None,
+                    "result_doc_types": list({r.get("doc_type") for r in results[:10] if isinstance(r, dict) and r.get("doc_type")}) if isinstance(results, list) else None,
+                },
+                "timestamp": int(datetime.now().timestamp() * 1000),
+            }) + "\n")
+    except Exception:
+        pass
+    # endregion
     return results
 
 
@@ -143,6 +166,27 @@ def search_transcripts(
     """
     service = get_retrieval_service()
     results = service.search_transcripts(query, ticker=ticker, k=k)
+    # region agent log
+    try:
+        with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
+            _f.write(json.dumps({
+                "sessionId": "debug-session",
+                "runId": "run-docs-missing-pre",
+                "hypothesisId": "H5",
+                "location": "search_tools.py:search_transcripts:exit",
+                "message": "search_transcripts result",
+                "data": {
+                    "query_preview": (query or "")[:200],
+                    "ticker": ticker,
+                    "k": k,
+                    "result_count": len(results) if isinstance(results, list) else None,
+                    "result_sample": results[0] if isinstance(results, list) and results else None,
+                },
+                "timestamp": int(datetime.now().timestamp() * 1000),
+            }) + "\n")
+    except Exception:
+        pass
+    # endregion
     # region agent log
     try:
         with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:

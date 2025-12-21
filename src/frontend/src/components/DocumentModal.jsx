@@ -112,6 +112,11 @@ const DocumentModal = ({ document: doc, isOpen, onClose }) => {
                   {doc.document.description}
                 </div>
               )}
+              {!doc.document.text && !doc.document.description && (
+                <pre className="whitespace-pre-wrap text-gray-700 leading-relaxed bg-gray-50 border border-gray-200 rounded p-3 text-sm overflow-x-auto">
+                  {JSON.stringify(doc.document, null, 2)}
+                </pre>
+              )}
             </div>
 
             {/* Link */}

@@ -68,8 +68,9 @@ class FinancialVectorStore:
         
         query_embedding = query_embedding.astype('float32')
         
-        # Search for more results if ticker prioritization is enabled
-        # This ensures we have enough results to prioritize properly
+        # Search for more results if ticker prioritization is enabled.
+        # NOTE: With very generic queries, the top-N nearest neighbors may contain 0 documents for a given ticker
+        # even if that ticker exists in the corpus. In that case, we do a second pass with a larger candidate pool.
         search_k = k * 3 if ticker else k * 2
         distances, indices = self.index.search(query_embedding, min(search_k, self.index.ntotal))
         
@@ -108,19 +109,6 @@ class FinancialVectorStore:
                 # No ticker filter, just add to results
                 ticker_matches.append(metadata)
         
-        # Sort both lists by similarity score (descending)
-        ticker_matches.sort(key=lambda x: x['similarity_score'], reverse=True)
-        other_results.sort(key=lambda x: x['similarity_score'], reverse=True)
-        
-        # Combine: ticker matches first, then other results
-        if ticker:
-            results = ticker_matches + other_results
-        else:
-            results = ticker_matches
-        
-        # Return top k results
-        final = results[:k]
-
         # Compute ticker presence diagnostics (lightweight scan)
         ticker_present_total = 0
         ticker_present_doc_type = 0
@@ -134,13 +122,61 @@ class FinancialVectorStore:
                     if m.get("ticker", "").upper() == target and m.get("doc_type") == doc_type
                 )
 
+        # If ticker exists in the corpus but we got no (or too few) ticker matches in the initial candidate pool,
+        # do a bounded second-pass search with a larger pool and merge results.
+        second_pass = {"ran": False, "search_k": None, "ticker_matches": None, "other_results": None}
+        if ticker and ticker_present_total > 0 and len(ticker_matches) < min(k, 3):
+            try:
+                # Increase candidate pool (bounded). This keeps behavior predictable while improving ticker recall.
+                big_search_k = min(self.index.ntotal, max(500, k * 60))
+                if big_search_k > min(search_k, self.index.ntotal):
+                    distances2, indices2 = self.index.search(query_embedding, big_search_k)
+                    tm2 = []
+                    other2 = []
+                    for i2, idx2 in enumerate(indices2[0]):
+                        if idx2 < 0 or idx2 >= len(self.metadata):
+                            continue
+                        md2 = self.metadata[idx2].copy()
+                        dist2 = float(distances2[0][i2])
+                        sim2 = 1.0 / (1.0 + dist2)
+                        if doc_type and md2.get("doc_type") != doc_type:
+                            continue
+                        if min_score and sim2 < min_score:
+                            continue
+                        md2["similarity_score"] = sim2
+                        md2["distance"] = dist2
+                        rt = md2.get("ticker", "").upper()
+                        if rt == target:
+                            tm2.append(md2)
+                        else:
+                            other2.append(md2)
+                    # Replace the candidate sets for final selection.
+                    ticker_matches = tm2
+                    other_results = other2
+                    second_pass = {"ran": True, "search_k": int(big_search_k), "ticker_matches": len(tm2), "other_results": len(other2)}
+            except Exception:
+                pass
+
+        # Sort both lists by similarity score (descending)
+        ticker_matches.sort(key=lambda x: x['similarity_score'], reverse=True)
+        other_results.sort(key=lambda x: x['similarity_score'], reverse=True)
+
+        # Combine: ticker matches first, then other results
+        if ticker:
+            results = ticker_matches + other_results
+        else:
+            results = ticker_matches
+
+        # Return top k results (IMPORTANT: computed AFTER optional second pass)
+        final = results[:k]
+
         # region agent log
         try:
             with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
                 _f.write(json.dumps({
                     "sessionId": "debug-session",
-                    "runId": "run3",
-                    "hypothesisId": "H4",
+                    "runId": "run-docs-missing-post",
+                    "hypothesisId": "H3",
                     "location": "vector_store.py:search",
                     "message": "vector search results",
                     "data": {
@@ -154,6 +190,7 @@ class FinancialVectorStore:
                         "sample_returned_tickers": list({m.get('ticker') for m in final if m.get('ticker')})[:5],
                         "ticker_present_total": ticker_present_total,
                         "ticker_present_doc_type": ticker_present_doc_type,
+                        "second_pass": second_pass,
                     },
                     "timestamp": int(datetime.now().timestamp() * 1000),
                 }) + "\n")

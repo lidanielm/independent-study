@@ -63,7 +63,7 @@ class ETLConfig:
     API_PORT = 8000
 
     # DocETL settings
-    DOCETL_ENABLED = False
+    DOCETL_ENABLED = True
     DOCETL_MODEL = os.getenv("DOCETL_MODEL", "gpt-4o-mini")
     DOCETL_TEMPERATURE = float(os.getenv("DOCETL_TEMPERATURE", 0.1))
     DOCETL_MAX_TOKENS = int(os.getenv("DOCETL_MAX_TOKENS", 1200))
