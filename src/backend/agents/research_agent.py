@@ -194,31 +194,6 @@ Be thorough but concise. Structure your responses clearly with:
             filtered.append(tu)
         tickers = filtered[: self.max_tickers]
         
-        # region agent log
-        try:
-            with open("/Users/danielli/Documents/penn/fa25/is/.cursor/debug.log", "a") as _f:
-                _f.write(json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "run1",
-                    "hypothesisId": "H1",
-                    "location": "research_agent.py:process_query:pre_run",
-                    "message": "ticker intent processed",
-                    "data": {
-                        "query": query,
-                        "context": base_context,
-                        "intent": intent.__dict__,
-                        "candidates": dedup,
-                        "filtered": tickers,
-                        "stoplist_hit": [t for t in dedup if t.upper() in stoplist],
-                        "universe_checked": bool(self.ticker_universe),
-                        "universe_size": len(self.ticker_universe),
-                    },
-                    "timestamp": int(datetime.now().timestamp() * 1000),
-                }) + "\n")
-        except Exception:
-            pass
-        # endregion
-        
         # Determine sources inferred
         doc_types: List[str] = []
         if intent.needs_news:
